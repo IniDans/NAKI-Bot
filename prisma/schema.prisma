@@ -1,0 +1,355 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Guild ──────────────────────────────────────────────────────────────────
+
+model Guild {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  config           GuildConfig?
+  logConfig        LogConfig?
+  welcomeConfig    WelcomeConfig?
+  leaveConfig      LeaveConfig?
+  securityConfig   SecurityConfig?
+  autoModRules     AutoModRule[]
+  warnings         Warning[]
+  moderationCases  ModerationCase[]
+  temporaryRoles   TemporaryRole[]
+  embedTemplates   EmbedTemplate[]
+  raidIncidents    RaidIncident[]
+  securityIncidents SecurityIncident[]
+  securityWhitelist SecurityWhitelist[]
+  scheduledTasks   ScheduledTask[]
+
+  @@index([guildId])
+}
+
+// ─── Guild Configuration ────────────────────────────────────────────────────
+
+model GuildConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  // Feature toggles
+  loggingEnabled   Boolean @default(false)
+  autoModEnabled   Boolean @default(false)
+  antiRaidEnabled  Boolean @default(false)
+  antiNukeEnabled  Boolean @default(false)
+  welcomeEnabled   Boolean @default(false)
+  leaveEnabled     Boolean @default(false)
+
+  // Moderation settings
+  muteRoleId       String?
+
+  // Metadata
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+// ─── Log Configuration ──────────────────────────────────────────────────────
+
+model LogConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  memberLogChannel     String?
+  messageLogChannel    String?
+  moderationLogChannel String?
+  channelLogChannel    String?
+  roleLogChannel       String?
+  serverLogChannel     String?
+  securityLogChannel   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+// ─── Welcome Configuration ──────────────────────────────────────────────────
+
+model WelcomeConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  enabled   Boolean  @default(false)
+  channelId String?
+  message   String?  @db.Text
+  embedData Json?
+  color     Int?
+  imageUrl  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+// ─── Leave Configuration ────────────────────────────────────────────────────
+
+model LeaveConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  enabled   Boolean  @default(false)
+  channelId String?
+  message   String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+// ─── AutoMod Rules ──────────────────────────────────────────────────────────
+
+model AutoModRule {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  ruleType  String   // SPAM, DUPLICATE, MENTION_SPAM, MASS_PING, EXCESSIVE_CAPS, BANNED_WORDS, LINK_FILTER
+  enabled   Boolean  @default(true)
+  config    Json     // Rule-specific configuration (thresholds, words, etc.)
+  action    String   // DELETE, WARN, TIMEOUT, MUTE, KICK, BAN, ADD_ROLE, LOG
+  actionConfig Json? // Action-specific configuration (role ID for ADD_ROLE, duration for TIMEOUT, etc.)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([guildId, ruleType])
+}
+
+// ─── Security Configuration ─────────────────────────────────────────────────
+
+model SecurityConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  // Anti-Nuke thresholds
+  antiNukeEnabled         Boolean @default(false)
+  channelDeleteThreshold  Int     @default(3)
+  channelCreateThreshold  Int     @default(5)
+  roleDeleteThreshold     Int     @default(3)
+  roleCreateThreshold     Int     @default(5)
+  banThreshold            Int     @default(5)
+  kickThreshold           Int     @default(5)
+  timeoutThreshold        Int     @default(10)
+  actionWindowSeconds     Int     @default(10)
+
+  // Anti-Raid thresholds
+  antiRaidEnabled         Boolean @default(false)
+  raidJoinThreshold       Int     @default(10)
+  raidTimeWindowSeconds   Int     @default(10)
+  minimumAccountAgeDays   Int     @default(7)
+  lockdownDurationMinutes Int     @default(15)
+
+  // Lockdown state
+  isLockedDown    Boolean  @default(false)
+  lockdownStarted DateTime?
+  lockdownEndsAt  DateTime?
+
+  // Security admin role(s)
+  securityAdminRoles Json? // Array of role IDs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+// ─── Security Whitelist ─────────────────────────────────────────────────────
+
+model SecurityWhitelist {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId    String
+  addedById String
+  reason    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@index([guildId, userId])
+}
+
+// ─── Warnings ───────────────────────────────────────────────────────────────
+
+model Warning {
+  id           String   @id @default(cuid())
+  guildId      String
+  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId       String
+  moderatorId  String
+  reason       String   @db.Text
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([guildId, userId])
+}
+
+// ─── Moderation Cases ───────────────────────────────────────────────────────
+
+model ModerationCase {
+  id           String   @id @default(cuid())
+  guildId      String
+  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  caseNumber   Int
+  action       String   // BAN, UNBAN, KICK, WARN, TIMEOUT, MUTE, UNMUTE, CLEAR, LOCK, UNLOCK, etc.
+  userId       String   // Target user
+  moderatorId  String   // Who performed the action
+  reason       String?  @db.Text
+  duration     Int?     // Duration in milliseconds (for timeout, temprole, etc.)
+  metadata     Json?    // Additional data (deleted messages count, role ID, etc.)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([guildId, caseNumber])
+  @@index([guildId])
+  @@index([guildId, userId])
+  @@index([guildId, moderatorId])
+}
+
+// ─── Temporary Roles ────────────────────────────────────────────────────────
+
+model TemporaryRole {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId    String
+  roleId    String
+  assignedBy String
+  reason    String?
+  expiresAt DateTime
+  active    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([guildId, userId])
+  @@index([expiresAt])
+  @@index([active, expiresAt])
+}
+
+// ─── Embed Templates ────────────────────────────────────────────────────────
+
+model EmbedTemplate {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  name      String
+  data      Json     // Full embed data (title, description, color, fields, etc.)
+  createdBy String   // User who created the template
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, name])
+  @@index([guildId])
+}
+
+// ─── Raid Incidents ─────────────────────────────────────────────────────────
+
+model RaidIncident {
+  id           String   @id @default(cuid())
+  guildId      String
+  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  threatLevel  String   // LOW, MEDIUM, HIGH, CRITICAL
+  joinCount    Int
+  timeWindow   Int      // seconds
+  accountAges  Json?    // Array of account ages involved
+  usernames    Json?    // Array of usernames involved
+  actionsTaken Json?    // What the bot did in response
+  resolved     Boolean  @default(false)
+  resolvedBy   String?
+  resolvedAt   DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([guildId, resolved])
+  @@index([createdAt])
+}
+
+// ─── Security Incidents ─────────────────────────────────────────────────────
+
+model SecurityIncident {
+  id           String   @id @default(cuid())
+  guildId      String
+  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  type         String   // MASS_CHANNEL_DELETE, MASS_ROLE_DELETE, MASS_BAN, etc.
+  executorId   String
+  actionCount  Int
+  threshold    Int
+  threatLevel  String   // LOW, MEDIUM, HIGH, CRITICAL
+  actionsTaken Json?    // What the bot did in response
+  details      Json?    // Additional details (affected channels, roles, etc.)
+  resolved     Boolean  @default(false)
+  resolvedBy   String?
+  resolvedAt   DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([guildId, executorId])
+  @@index([guildId, resolved])
+  @@index([createdAt])
+}
+
+// ─── Scheduled Tasks ────────────────────────────────────────────────────────
+
+model ScheduledTask {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  type      String   // TEMP_ROLE_EXPIRE, UNMUTE, UNLOCK, SECURITY_COOLDOWN, RAID_LOCKDOWN_EXPIRE
+  data      Json     // Task-specific data (userId, roleId, channelId, etc.)
+  executeAt DateTime
+  completed Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([completed, executeAt])
+  @@index([type, completed])
+}
