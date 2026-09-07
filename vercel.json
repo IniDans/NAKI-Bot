@@ -1,11 +1,13 @@
 {
-  "version": 2,
-  "builds": [{
-    "src": "api/health.ts",
-    "use": "@vercel/node"
-  }],
-  "routes": [{
-    "src": "/api/health",
-    "dest": "/api/health.ts"
-  }]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    }
+  ]
 }
