@@ -27,9 +27,20 @@ const command: Command = {
       const c = await guildService.getSecurityConfig(guild.id); const list = await prisma.securityWhitelist.count({ where: { guildId: guild.id } });
       await interaction.reply({ embeds: [embedUtils.info('Security Status', `**Anti-Raid:** ${c.antiRaidEnabled ? 'Enabled' : 'Disabled'}\n**Anti-Nuke:** ${c.antiNukeEnabled ? 'Enabled' : 'Disabled'}\n**Lockdown:** ${c.isLockedDown ? 'Active' : 'Inactive'}\n**Whitelist entries:** ${list}\n**Raid threshold:** ${c.raidJoinThreshold} joins / ${c.raidTimeWindowSeconds}s\n**Action window:** ${c.actionWindowSeconds}s`)], ephemeral: true }); return;
     }
-    if (sub === 'lockdown' || sub === 'unlock') {
-      if (sub === 'lockdown') await antiraidModule.lockdown(guild, `Manual lockdown by ${interaction.user.tag}`); else await antiraidModule.unlock(guild, `Manual unlock by ${interaction.user.tag}`);
-      await interaction.reply({ embeds: [embedUtils.success('Security Updated', `Lockdown is now **${sub === 'lockdown' ? 'active' : 'inactive'}**.`)], ephemeral: true }); return;
+    if (sub === 'lockdown') {
+      await interaction.deferReply({ ephemeral: true });
+      const result = await antiraidModule.lockdown(guild, `Manual lockdown by ${interaction.user.tag}`);
+      if (result.status === 'already_locked') { await interaction.editReply({ embeds: [embedUtils.warning('Already Locked', 'A lockdown is already active. Use `/security unlock` first.')] }); return; }
+      const ends = result.endsAt ? `\nLifts automatically <t:${Math.floor(result.endsAt.getTime() / 1000)}:R>.` : '';
+      const failures = result.failed ? `\n⚠️ ${result.failed} channel(s) could not be locked. Check the bot's permissions.` : '';
+      await interaction.editReply({ embeds: [(result.failed ? embedUtils.warning : embedUtils.success)('Lockdown Active', `Locked **${result.changed}** channel(s). Channels that were already read-only were left untouched.${ends}${failures}`)] }); return;
+    }
+    if (sub === 'unlock') {
+      await interaction.deferReply({ ephemeral: true });
+      const result = await antiraidModule.unlock(guild, `Manual unlock by ${interaction.user.tag}`);
+      if (result.status === 'not_locked') { await interaction.editReply({ embeds: [embedUtils.warning('Not Locked', 'There is no active lockdown.')] }); return; }
+      if (result.status === 'partial') { await interaction.editReply({ embeds: [embedUtils.warning('Partially Unlocked', `Restored **${result.restored}** channel(s), but **${result.failed}** failed. Check the bot's permissions and run \`/security unlock\` again.`)] }); return; }
+      await interaction.editReply({ embeds: [embedUtils.success('Lockdown Lifted', `Restored **${result.restored}** channel(s) to their original permissions.`)] }); return;
     }
     if (sub === 'whitelist-add' || sub === 'whitelist-remove') {
       const user = interaction.options.getUser('user', true); if (user.id === guild.ownerId) { await interaction.reply({ embeds: [embedUtils.error('Invalid User', 'The server owner is protected automatically.')], ephemeral: true }); return; }

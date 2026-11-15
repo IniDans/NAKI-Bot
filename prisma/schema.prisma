@@ -170,6 +170,8 @@ model SecurityConfig {
   isLockedDown    Boolean  @default(false)
   lockdownStarted DateTime?
   lockdownEndsAt  DateTime?
+  // Pre-lockdown @everyone SendMessages state per channel, used to restore exactly
+  lockdownSnapshot Json?
 
   // Security admin role(s)
   securityAdminRoles Json? // Array of role IDs
