@@ -345,6 +345,8 @@ model ScheduledTask {
   data      Json     // Task-specific data (userId, roleId, channelId, etc.)
   executeAt DateTime
   completed Boolean  @default(false)
+  attempts  Int      @default(0)
+  lastError String?  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
