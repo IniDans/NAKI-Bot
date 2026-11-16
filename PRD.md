@@ -842,7 +842,7 @@ The system must use persistent database storage.
 
 Recommended options:
 
-- PostgreSQL for production
+- MySQL for production
 - SQLite for local development/testing
 
 Minimum entities:
@@ -1214,7 +1214,7 @@ Recommended:
 Node.js
 TypeScript
 discord.js
-PostgreSQL
+MySQL
 Prisma ORM
 dotenv
 Zod

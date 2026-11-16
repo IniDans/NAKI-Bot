@@ -1,6 +1,6 @@
 # NAKI Bot
 
-Modular Discord moderation, logging, automation, and server-security bot built with TypeScript, discord.js, Prisma, PostgreSQL, Zod, and Vitest.
+Modular Discord moderation, logging, automation, and server-security bot built with TypeScript, discord.js, Prisma, MySQL, Zod, and Vitest.
 
 ## Implemented
 
@@ -50,7 +50,7 @@ This project is a persistent Discord Gateway bot. The bot process must stay aliv
 Recommended production setup:
 
 - Deploy the bot (`npm run build` then `npm start`) on Railway, Render, Fly.io, a VPS, or another always-on Node.js host.
-- Use managed PostgreSQL (Neon, Supabase, Railway, Render, etc.) for `DATABASE_URL`.
+- Use MySQL for `DATABASE_URL`, for example a cPanel database with the bot host's IP added under **Remote MySQL**. Keep `connection_limit` low (e.g. `?connection_limit=5`) on shared hosting.
 - Use Vercel only for a future dashboard/API or the included deployment health endpoint.
 
 This repository includes a minimal Vercel endpoint at `/api/health` so the repository can be connected to Vercel and used as a companion service. It does **not** run the Discord bot. To deploy that endpoint:
