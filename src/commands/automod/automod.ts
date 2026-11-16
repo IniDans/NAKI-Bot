@@ -4,10 +4,22 @@ import { db } from '../../services/database/index.js';
 import { guildService } from '../../services/database/guild.service.js';
 import { embedUtils } from '../../utils/embed.js';
 import { validateAutoModRule } from '../../modules/automod/validation.js';
+import { automodModule } from '../../modules/automod/index.js';
+import { syncNativeAutomod } from '../../modules/automod/native.js';
+import { appLogger } from '../../utils/logger.js';
 import type { Command } from '../../types/index.js';
 
 const prisma = db.client;
-const RULES = ['SPAM', 'DUPLICATE', 'MENTION_SPAM', 'MASS_PING', 'EXCESSIVE_CAPS', 'BANNED_WORDS', 'LINK_FILTER'] as const;
+const RULES = ['SPAM', 'DUPLICATE', 'MENTION_SPAM', 'MASS_PING', 'EXCESSIVE_CAPS', 'BANNED_WORDS', 'LINK_FILTER', 'INVITES', 'PHISHING', 'EMOJI_SPAM', 'ZALGO'] as const;
+/** Rule changes from Discord: drop the cached rules and refresh the mirrored native rule. */
+async function afterRuleChange(interaction: ChatInputCommandInteraction): Promise<void> {
+  automodModule.invalidate(interaction.guildId!);
+  if (!interaction.guild) return;
+  await syncNativeAutomod(interaction.guild).catch((error) =>
+    appLogger.warn('Native AutoMod sync failed', 'AutoMod', { guildId: interaction.guildId, error: error instanceof Error ? error.message : String(error) }),
+  );
+}
+
 const ACTIONS = ['DELETE', 'WARN', 'TIMEOUT', 'MUTE', 'KICK', 'BAN', 'ADD_ROLE', 'LOG'] as const;
 
 const command: Command = {
@@ -26,6 +38,7 @@ const command: Command = {
     const guildId = interaction.guildId!; const sub = interaction.options.getSubcommand();
     if (sub === 'enable' || sub === 'disable') {
       await guildService.updateGuildConfig(guildId, { autoModEnabled: sub === 'enable' });
+      void afterRuleChange(interaction);
       await interaction.reply({ embeds: [embedUtils.success('AutoMod Updated', `AutoMod is now **${sub === 'enable' ? 'enabled' : 'disabled'}**.`)], ephemeral: true }); return;
     }
     if (sub === 'rule-list') {
@@ -34,7 +47,7 @@ const command: Command = {
       await interaction.reply({ embeds: [embedUtils.info('AutoMod Rules', text)], ephemeral: true }); return;
     }
     if (sub === 'rule-remove') {
-      const id = interaction.options.getString('id', true); const deleted = await prisma.autoModRule.deleteMany({ where: { id, guildId } });
+      const id = interaction.options.getString('id', true); const deleted = await prisma.autoModRule.deleteMany({ where: { id, guildId } }); if (deleted.count) void afterRuleChange(interaction);
       await interaction.reply({ embeds: [deleted.count ? embedUtils.success('Rule Removed', `Removed rule \`${id}\`.`) : embedUtils.error('Rule Not Found', 'That rule does not exist in this server.')], ephemeral: true }); return;
     }
     const type = interaction.options.getString('type', true); const action = interaction.options.getString('action', true);
@@ -44,6 +57,7 @@ const command: Command = {
     const count = await prisma.autoModRule.count({ where: { guildId } }); if (count >= 100) { await interaction.reply({ embeds: [embedUtils.error('Rule Limit', 'This server already has the maximum of 100 AutoMod rules.')], ephemeral: true }); return; }
     const rule = await prisma.autoModRule.create({ data: { guildId, ruleType: type, action, config: config as Prisma.InputJsonValue, actionConfig: actionConfig as Prisma.InputJsonValue } });
     await guildService.updateGuildConfig(guildId, { autoModEnabled: true });
+    void afterRuleChange(interaction);
     await interaction.reply({ embeds: [embedUtils.success('Rule Added', `Added **${type}** → **${action}**.\nRule ID: \`${rule.id}\``)], ephemeral: true });
   },
 };

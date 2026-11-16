@@ -1,6 +1,6 @@
 ﻿import { z } from 'zod';
 
-const ruleTypes = ['SPAM', 'DUPLICATE', 'MENTION_SPAM', 'MASS_PING', 'EXCESSIVE_CAPS', 'BANNED_WORDS', 'LINK_FILTER'] as const;
+const ruleTypes = ['SPAM', 'DUPLICATE', 'MENTION_SPAM', 'MASS_PING', 'EXCESSIVE_CAPS', 'BANNED_WORDS', 'LINK_FILTER', 'INVITES', 'PHISHING', 'EMOJI_SPAM', 'ZALGO'] as const;
 const actions = ['DELETE', 'WARN', 'TIMEOUT', 'MUTE', 'KICK', 'BAN', 'ADD_ROLE', 'LOG'] as const;
 const boundedConfig = z.record(z.unknown()).default({});
 
@@ -28,6 +28,20 @@ export const autoModRuleSchema = z.object({
   }
   if (value.ruleType === 'BANNED_WORDS' && config.words !== undefined && (!Array.isArray(config.words) || config.words.length > 100 || config.words.some((word) => typeof word !== 'string' || word.length > 100))) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['config', 'words'], message: 'words must contain at most 100 strings of 100 characters or fewer.' });
+  }
+  for (const key of ['maxEmojis', 'maxStack'] as const) {
+    if (key in config && (typeof config[key] !== 'number' || !Number.isInteger(config[key]) || config[key] < 1 || config[key] > 100)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['config', key], message: `${key} must be a whole number from 1 to 100.` });
+    }
+  }
+  for (const [key, max] of [['exemptChannels', 50], ['exemptRoles', 20]] as const) {
+    const list = config[key];
+    if (list !== undefined && (!Array.isArray(list) || list.length > max || list.some((id) => typeof id !== 'string' || !/^\d{17,20}$/.test(id)))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['config', key], message: `${key} must be at most ${max} Discord IDs.` });
+    }
+  }
+  if (value.ruleType === 'PHISHING' && config.extraDomains !== undefined && (!Array.isArray(config.extraDomains) || config.extraDomains.length > 100 || config.extraDomains.some((d) => typeof d !== 'string' || d.length > 253))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['config', 'extraDomains'], message: 'extraDomains contains invalid domains.' });
   }
   if (value.ruleType === 'LINK_FILTER') {
     for (const key of ['blockedDomains', 'allowedDomains'] as const) {

@@ -70,6 +70,10 @@ export enum AutoModRuleType {
   EXCESSIVE_CAPS = 'EXCESSIVE_CAPS',
   BANNED_WORDS = 'BANNED_WORDS',
   LINK_FILTER = 'LINK_FILTER',
+  INVITES = 'INVITES',
+  PHISHING = 'PHISHING',
+  EMOJI_SPAM = 'EMOJI_SPAM',
+  ZALGO = 'ZALGO',
 }
 
 // ─── AutoMod Actions ────────────────────────────────────────────────────────
