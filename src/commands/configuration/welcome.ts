@@ -35,8 +35,10 @@ const command: Command = {
     if (!config.channelId) { await interaction.reply({ embeds: [embedUtils.error('Not Configured', 'Run `/welcome setup` first.')], ephemeral: true }); return; }
     const channel = interaction.guild!.channels.cache.get(config.channelId);
     if (!(channel instanceof TextChannel)) { await interaction.reply({ embeds: [embedUtils.error('Invalid Channel', 'The configured channel is missing or is not text-based.')], ephemeral: true }); return; }
-    await welcomeModule.sendPreview(member, channel, config.message ?? DEFAULT_WELCOME_MESSAGE);
-    await interaction.reply({ embeds: [embedUtils.success('Welcome Test Sent', `Preview sent to <#${channel.id}>.`)], ephemeral: true });
+    // Rendering the card can take a moment, so acknowledge first.
+    await interaction.deferReply({ ephemeral: true });
+    await welcomeModule.sendPreview(member, channel, config);
+    await interaction.editReply({ embeds: [embedUtils.success('Welcome Test Sent', `Preview sent to <#${channel.id}>.`)] });
   },
 };
 export default command;

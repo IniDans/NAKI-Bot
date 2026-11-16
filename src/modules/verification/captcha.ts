@@ -1,23 +1,9 @@
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { fileURLToPath } from 'url';
+import { createCanvas } from '@napi-rs/canvas';
+import { ensureFont } from '../../utils/font.js';
 
 // Letters and digits that cannot be mistaken for each other (no 0/O, 1/I/L, 5/S, 2/Z).
 export const CAPTCHA_ALPHABET = 'ABCDEFGHJKMNPQRTUVWXY346789';
 export const CAPTCHA_LENGTH = 5;
-
-const FONT_FAMILY = 'NakiSans';
-const fontPath = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..', 'assets', 'fonts', 'NotoSans-Regular.ttf');
-let fontLoaded = false;
-
-function ensureFont(): string {
-  if (!fontLoaded && existsSync(fontPath)) {
-    GlobalFonts.registerFromPath(fontPath, FONT_FAMILY);
-    fontLoaded = true;
-  }
-  return fontLoaded ? FONT_FAMILY : 'sans-serif';
-}
 
 export function generateCode(random: () => number = Math.random): string {
   let code = '';
