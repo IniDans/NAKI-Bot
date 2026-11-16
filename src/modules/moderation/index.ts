@@ -13,6 +13,9 @@ import { guildService } from '../../services/database/guild.service.js';
 import { Colors, LogCategory, ModerationAction, DiscordLimits } from '../../config/constants.js';
 import { embedUtils } from '../../utils/embed.js';
 import { appLogger } from '../../utils/logger.js';
+import { scheduler } from '../../services/scheduler/index.js';
+import { formatDuration } from '../../utils/duration.js';
+import { applyEscalation, countActiveWarnings } from './escalation.js';
 
 
 /**
@@ -28,6 +31,7 @@ export const moderationModule = {
     target: GuildMember,
     reason: string | null,
     deleteDays: number,
+    durationMs: number | null = null,
   ): Promise<void> {
     const guild = interaction.guild!;
     const moderator = interaction.member as GuildMember;
@@ -47,7 +51,7 @@ export const moderationModule = {
     // DM the user before banning (may fail if DMs are closed)
     try {
       await target.send({
-        embeds: [embedUtils.dmNotification(guild.name, 'Banned', reason)],
+        embeds: [embedUtils.dmNotification(guild.name, durationMs ? `Banned for ${formatDuration(durationMs)}` : 'Banned', reason)],
       });
     } catch {
       // DMs closed â€” continue with ban
@@ -66,15 +70,20 @@ export const moderationModule = {
       userId: target.id,
       moderatorId: moderator.id,
       reason,
-      metadata: { deleteDays },
+      duration: durationMs,
+      metadata: { deleteDays, temporary: Boolean(durationMs) },
     });
+
+    if (durationMs) {
+      await scheduler.scheduleTask(guild.id, 'TEMP_BAN_EXPIRE', { userId: target.id }, new Date(Date.now() + durationMs));
+    }
 
     // Log
     await logModule.sendLog(interaction.client, guild.id, LogCategory.MODERATION, {
-      eventType: 'Member Banned',
+      eventType: durationMs ? 'Member Temporarily Banned' : 'Member Banned',
       user: { id: moderator.id, tag: moderator.user.tag },
       target: { id: target.id, tag: target.user.tag },
-      action: 'Ban',
+      action: durationMs ? `Ban (${formatDuration(durationMs)})` : 'Ban',
       reason,
       guildId: guild.id,
       guildName: guild.name,
@@ -84,10 +93,13 @@ export const moderationModule = {
 
     await interaction.reply({
       embeds: [
-        embedUtils.moderation('User Banned', Colors.BAN, [
+        embedUtils.moderation(durationMs ? 'User Temporarily Banned' : 'User Banned', Colors.BAN, [
           { name: 'User', value: `${target.user.tag} (${target.id})`, inline: true },
           { name: 'Moderator', value: `${moderator.user.tag}`, inline: true },
           { name: 'Reason', value: reason ?? 'No reason provided', inline: false },
+          ...(durationMs
+            ? [{ name: 'Expires', value: `<t:${Math.floor((Date.now() + durationMs) / 1000)}:R>`, inline: true }]
+            : []),
           { name: 'Case', value: `#${modCase.caseNumber}`, inline: true },
         ]),
       ],
@@ -254,7 +266,7 @@ export const moderationModule = {
 
     // Create the warning
     const warning = await auditService.createWarning(guild.id, target.id, moderator.id, reason);
-    const warningCount = await auditService.getWarningCount(guild.id, target.id);
+    const warningCount = await countActiveWarnings(guild.id, target.id);
 
     const modCase = await auditService.createCase({
       guildId: guild.id,
@@ -297,6 +309,13 @@ export const moderationModule = {
         ]),
       ],
     });
+
+    const escalated = await applyEscalation(interaction.client, guild, target, warningCount);
+    if (escalated) {
+      await interaction.followUp({
+        embeds: [embedUtils.warning('Escalation Applied', `**${target.user.tag}** reached ${warningCount} warnings: ${escalated}.`)],
+      });
+    }
   },
 
   /**

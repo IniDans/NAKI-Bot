@@ -19,20 +19,37 @@ model Guild {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  config           GuildConfig?
-  logConfig        LogConfig?
-  welcomeConfig    WelcomeConfig?
-  leaveConfig      LeaveConfig?
-  securityConfig   SecurityConfig?
-  autoModRules     AutoModRule[]
-  warnings         Warning[]
-  moderationCases  ModerationCase[]
-  temporaryRoles   TemporaryRole[]
-  embedTemplates   EmbedTemplate[]
-  raidIncidents    RaidIncident[]
-  securityIncidents SecurityIncident[]
-  securityWhitelist SecurityWhitelist[]
-  scheduledTasks   ScheduledTask[]
+  config             GuildConfig?
+  logConfig          LogConfig?
+  welcomeConfig      WelcomeConfig?
+  leaveConfig        LeaveConfig?
+  securityConfig     SecurityConfig?
+  autoModRules       AutoModRule[]
+  warnings           Warning[]
+  moderationCases    ModerationCase[]
+  temporaryRoles     TemporaryRole[]
+  embedTemplates     EmbedTemplate[]
+  raidIncidents      RaidIncident[]
+  securityIncidents  SecurityIncident[]
+  securityWhitelist  SecurityWhitelist[]
+  scheduledTasks     ScheduledTask[]
+  modConfig          ModConfig?
+  verificationConfig VerificationConfig?
+  levelConfig        LevelConfig?
+  tempVoiceConfig    TempVoiceConfig?
+  modNotes           ModNote[]
+  reports            Report[]
+  modmailThreads     ModmailThread[]
+  appeals            Appeal[]
+  rolePanels         RolePanel[]
+  autoResponders     AutoResponder[]
+  stickyMessages     StickyMessage[]
+  scheduledMessages  ScheduledMessage[]
+  socialFeeds        SocialFeed[]
+  statsChannels      StatsChannel[]
+  memberLevels       MemberLevel[]
+  giveaways          Giveaway[]
+  tempVoiceChannels  TempVoiceChannel[]
 
   @@index([guildId])
 }
@@ -40,20 +57,20 @@ model Guild {
 // ─── Guild Configuration ────────────────────────────────────────────────────
 
 model GuildConfig {
-  id        String   @id @default(cuid())
-  guildId   String   @unique
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
   // Feature toggles
-  loggingEnabled   Boolean @default(false)
-  autoModEnabled   Boolean @default(false)
-  antiRaidEnabled  Boolean @default(false)
-  antiNukeEnabled  Boolean @default(false)
-  welcomeEnabled   Boolean @default(false)
-  leaveEnabled     Boolean @default(false)
+  loggingEnabled  Boolean @default(false)
+  autoModEnabled  Boolean @default(false)
+  antiRaidEnabled Boolean @default(false)
+  antiNukeEnabled Boolean @default(false)
+  welcomeEnabled  Boolean @default(false)
+  leaveEnabled    Boolean @default(false)
 
   // Moderation settings
-  muteRoleId       String?
+  muteRoleId String?
 
   // Metadata
   metadata  Json?
@@ -66,9 +83,9 @@ model GuildConfig {
 // ─── Log Configuration ──────────────────────────────────────────────────────
 
 model LogConfig {
-  id        String   @id @default(cuid())
-  guildId   String   @unique
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
   memberLogChannel     String?
   messageLogChannel    String?
@@ -87,16 +104,19 @@ model LogConfig {
 // ─── Welcome Configuration ──────────────────────────────────────────────────
 
 model WelcomeConfig {
-  id        String   @id @default(cuid())
-  guildId   String   @unique
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  enabled   Boolean  @default(false)
-  channelId String?
-  message   String?  @db.Text
-  embedData Json?
-  color     Int?
-  imageUrl  String? @db.Text
+  enabled     Boolean @default(false)
+  channelId   String?
+  message     String? @db.Text
+  embedData   Json?
+  color       Int?
+  imageUrl    String? @db.Text
+  // Generated image card (avatar, name, member number) attached to the welcome message
+  cardEnabled Boolean @default(false)
+  cardAccent  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -107,13 +127,13 @@ model WelcomeConfig {
 // ─── Leave Configuration ────────────────────────────────────────────────────
 
 model LeaveConfig {
-  id        String   @id @default(cuid())
-  guildId   String   @unique
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  enabled   Boolean  @default(false)
+  enabled   Boolean @default(false)
   channelId String?
-  message   String?  @db.Text
+  message   String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -124,14 +144,14 @@ model LeaveConfig {
 // ─── AutoMod Rules ──────────────────────────────────────────────────────────
 
 model AutoModRule {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  ruleType  String   // SPAM, DUPLICATE, MENTION_SPAM, MASS_PING, EXCESSIVE_CAPS, BANNED_WORDS, LINK_FILTER
-  enabled   Boolean  @default(true)
-  config    Json     // Rule-specific configuration (thresholds, words, etc.)
-  action    String   // DELETE, WARN, TIMEOUT, MUTE, KICK, BAN, ADD_ROLE, LOG
+  ruleType     String // SPAM, DUPLICATE, MENTION_SPAM, MASS_PING, EXCESSIVE_CAPS, BANNED_WORDS, LINK_FILTER, INVITES, PHISHING, EMOJI_SPAM, ZALGO
+  enabled      Boolean @default(true)
+  config       Json // Rule-specific configuration (thresholds, words, etc.)
+  action       String // DELETE, WARN, TIMEOUT, MUTE, KICK, BAN, ADD_ROLE, LOG
   actionConfig Json? // Action-specific configuration (role ID for ADD_ROLE, duration for TIMEOUT, etc.)
 
   createdAt DateTime @default(now())
@@ -144,20 +164,20 @@ model AutoModRule {
 // ─── Security Configuration ─────────────────────────────────────────────────
 
 model SecurityConfig {
-  id        String   @id @default(cuid())
-  guildId   String   @unique
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
   // Anti-Nuke thresholds
-  antiNukeEnabled         Boolean @default(false)
-  channelDeleteThreshold  Int     @default(3)
-  channelCreateThreshold  Int     @default(5)
-  roleDeleteThreshold     Int     @default(3)
-  roleCreateThreshold     Int     @default(5)
-  banThreshold            Int     @default(5)
-  kickThreshold           Int     @default(5)
-  timeoutThreshold        Int     @default(10)
-  actionWindowSeconds     Int     @default(10)
+  antiNukeEnabled        Boolean @default(false)
+  channelDeleteThreshold Int     @default(3)
+  channelCreateThreshold Int     @default(5)
+  roleDeleteThreshold    Int     @default(3)
+  roleCreateThreshold    Int     @default(5)
+  banThreshold           Int     @default(5)
+  kickThreshold          Int     @default(5)
+  timeoutThreshold       Int     @default(10)
+  actionWindowSeconds    Int     @default(10)
 
   // Anti-Raid thresholds
   antiRaidEnabled         Boolean @default(false)
@@ -167,9 +187,9 @@ model SecurityConfig {
   lockdownDurationMinutes Int     @default(15)
 
   // Lockdown state
-  isLockedDown    Boolean  @default(false)
-  lockdownStarted DateTime?
-  lockdownEndsAt  DateTime?
+  isLockedDown     Boolean   @default(false)
+  lockdownStarted  DateTime?
+  lockdownEndsAt   DateTime?
   // Pre-lockdown @everyone SendMessages state per channel, used to restore exactly
   lockdownSnapshot Json?
 
@@ -185,9 +205,9 @@ model SecurityConfig {
 // ─── Security Whitelist ─────────────────────────────────────────────────────
 
 model SecurityWhitelist {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
   userId    String
   addedById String
@@ -204,16 +224,16 @@ model SecurityWhitelist {
 // ─── Warnings ───────────────────────────────────────────────────────────────
 
 model Warning {
-  id           String   @id @default(cuid())
-  guildId      String
-  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  userId       String
-  moderatorId  String
-  reason       String   @db.Text
+  userId      String
+  moderatorId String
+  reason      String @db.Text
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([guildId])
   @@index([guildId, userId])
@@ -222,20 +242,20 @@ model Warning {
 // ─── Moderation Cases ───────────────────────────────────────────────────────
 
 model ModerationCase {
-  id           String   @id @default(cuid())
-  guildId      String
-  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  caseNumber   Int
-  action       String   // BAN, UNBAN, KICK, WARN, TIMEOUT, MUTE, UNMUTE, CLEAR, LOCK, UNLOCK, etc.
-  userId       String   // Target user
-  moderatorId  String   // Who performed the action
-  reason       String?  @db.Text
-  duration     Int?     // Duration in milliseconds (for timeout, temprole, etc.)
-  metadata     Json?    // Additional data (deleted messages count, role ID, etc.)
+  caseNumber  Int
+  action      String // BAN, UNBAN, KICK, WARN, TIMEOUT, MUTE, UNMUTE, CLEAR, LOCK, UNLOCK, etc.
+  userId      String // Target user
+  moderatorId String // Who performed the action
+  reason      String? @db.Text
+  duration    Int? // Duration in milliseconds (for timeout, temprole, etc.)
+  metadata    Json? // Additional data (deleted messages count, role ID, etc.)
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([guildId, caseNumber])
   @@index([guildId])
@@ -246,16 +266,16 @@ model ModerationCase {
 // ─── Temporary Roles ────────────────────────────────────────────────────────
 
 model TemporaryRole {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  userId    String
-  roleId    String
+  userId     String
+  roleId     String
   assignedBy String
-  reason    String? @db.Text
-  expiresAt DateTime
-  active    Boolean  @default(true)
+  reason     String?  @db.Text
+  expiresAt  DateTime
+  active     Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -269,13 +289,13 @@ model TemporaryRole {
 // ─── Embed Templates ────────────────────────────────────────────────────────
 
 model EmbedTemplate {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
   name      String
-  data      Json     // Full embed data (title, description, color, fields, etc.)
-  createdBy String   // User who created the template
+  data      Json // Full embed data (title, description, color, fields, etc.)
+  createdBy String // User who created the template
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -287,22 +307,22 @@ model EmbedTemplate {
 // ─── Raid Incidents ─────────────────────────────────────────────────────────
 
 model RaidIncident {
-  id           String   @id @default(cuid())
-  guildId      String
-  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  threatLevel  String   // LOW, MEDIUM, HIGH, CRITICAL
+  threatLevel  String // LOW, MEDIUM, HIGH, CRITICAL
   joinCount    Int
-  timeWindow   Int      // seconds
-  accountAges  Json?    // Array of account ages involved
-  usernames    Json?    // Array of usernames involved
-  actionsTaken Json?    // What the bot did in response
-  resolved     Boolean  @default(false)
+  timeWindow   Int // seconds
+  accountAges  Json? // Array of account ages involved
+  usernames    Json? // Array of usernames involved
+  actionsTaken Json? // What the bot did in response
+  resolved     Boolean   @default(false)
   resolvedBy   String?
   resolvedAt   DateTime?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([guildId])
   @@index([guildId, resolved])
@@ -312,23 +332,23 @@ model RaidIncident {
 // ─── Security Incidents ─────────────────────────────────────────────────────
 
 model SecurityIncident {
-  id           String   @id @default(cuid())
-  guildId      String
-  guild        Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  type         String   // MASS_CHANNEL_DELETE, MASS_ROLE_DELETE, MASS_BAN, etc.
+  type         String // MASS_CHANNEL_DELETE, MASS_ROLE_DELETE, MASS_BAN, etc.
   executorId   String
   actionCount  Int
   threshold    Int
-  threatLevel  String   // LOW, MEDIUM, HIGH, CRITICAL
-  actionsTaken Json?    // What the bot did in response
-  details      Json?    // Additional details (affected channels, roles, etc.)
-  resolved     Boolean  @default(false)
+  threatLevel  String // LOW, MEDIUM, HIGH, CRITICAL
+  actionsTaken Json? // What the bot did in response
+  details      Json? // Additional details (affected channels, roles, etc.)
+  resolved     Boolean   @default(false)
   resolvedBy   String?
   resolvedAt   DateTime?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([guildId])
   @@index([guildId, executorId])
@@ -339,12 +359,12 @@ model SecurityIncident {
 // ─── Scheduled Tasks ────────────────────────────────────────────────────────
 
 model ScheduledTask {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
-  type      String   // TEMP_ROLE_EXPIRE, UNMUTE, UNLOCK, SECURITY_COOLDOWN, RAID_LOCKDOWN_EXPIRE
-  data      Json     // Task-specific data (userId, roleId, channelId, etc.)
+  type      String // TEMP_ROLE_EXPIRE, UNMUTE, UNLOCK, SECURITY_COOLDOWN, RAID_LOCKDOWN_EXPIRE, TEMP_BAN_EXPIRE, GIVEAWAY_END
+  data      Json // Task-specific data (userId, roleId, channelId, etc.)
   executeAt DateTime
   completed Boolean  @default(false)
   attempts  Int      @default(0)
@@ -356,4 +376,349 @@ model ScheduledTask {
   @@index([guildId])
   @@index([completed, executeAt])
   @@index([type, completed])
+}
+
+// ─── Moderation Settings (escalation, reports, modmail, appeals) ───────────
+
+model ModConfig {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  // Warn escalation: [{ warns: 3, action: "TIMEOUT" | "KICK" | "BAN" | "TEMPBAN", duration?: "1h" }]
+  escalationEnabled Boolean @default(false)
+  escalationSteps   Json?
+  // Warnings older than this many days stop counting toward escalation (0 = never expire)
+  warnExpiryDays    Int     @default(0)
+
+  reportChannelId  String?
+  modmailEnabled   Boolean @default(false)
+  modmailChannelId String?
+  appealsEnabled   Boolean @default(false)
+  appealChannelId  String?
+  appealQuestion   String? @db.Text
+
+  // Mirror BANNED_WORDS rules into Discord's native AutoMod so they work while the bot is offline
+  nativeAutomodSync   Boolean @default(false)
+  nativeAutomodRuleId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Moderator Notes ────────────────────────────────────────────────────────
+
+model ModNote {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId      String
+  moderatorId String
+  content     String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, userId])
+}
+
+// ─── Verification, alt filter & autoroles ───────────────────────────────────
+
+model VerificationConfig {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  enabled          Boolean @default(false)
+  mode             String  @default("BUTTON") // BUTTON, CAPTCHA
+  channelId        String?
+  messageId        String?
+  unverifiedRoleId String?
+  verifiedRoleId   String?
+
+  // Alt-account filter, applied on join whether or not verification is on
+  altFilterEnabled  Boolean @default(false)
+  minAccountAgeDays Int     @default(7)
+  requireAvatar     Boolean @default(false)
+  altAction         String  @default("KICK") // KICK, BAN, LOG
+
+  // Role IDs given to humans (after verification when it is on) and to bots on join
+  autoRoles Json?
+  botRoles  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Message Reports ────────────────────────────────────────────────────────
+
+model Report {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  reporterId   String
+  targetId     String
+  channelId    String
+  messageId    String
+  content      String?   @db.Text
+  reason       String?   @db.Text
+  status       String    @default("OPEN") // OPEN, ACTIONED, DISMISSED
+  logChannelId String?
+  logMessageId String?
+  handledBy    String?
+  handledAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, status])
+}
+
+// ─── Modmail ────────────────────────────────────────────────────────────────
+
+model ModmailThread {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId   String
+  threadId String    @unique
+  open     Boolean   @default(true)
+  closedBy String?
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, open])
+  @@index([guildId, open])
+}
+
+// ─── Ban Appeals ────────────────────────────────────────────────────────────
+
+model Appeal {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId     String
+  username   String
+  answer     String  @db.Text
+  status     String  @default("PENDING") // PENDING, ACCEPTED, DENIED
+  reviewerId String?
+  reviewNote String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, status])
+  @@index([guildId, userId])
+}
+
+// ─── Role Panels (buttons / select menu) ────────────────────────────────────
+
+model RolePanel {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  style       String  @default("BUTTONS") // BUTTONS, SELECT
+  // Only one role from this panel at a time
+  exclusive   Boolean @default(false)
+  // [{ roleId, label, emoji? }]
+  options     Json
+  channelId   String?
+  messageId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+}
+
+// ─── Auto-responders, sticky & scheduled messages ──────────────────────────
+
+model AutoResponder {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  trigger   String
+  matchType String  @default("CONTAINS") // EXACT, CONTAINS, STARTS_WITH
+  response  String  @db.Text
+  enabled   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
+}
+
+model StickyMessage {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  channelId     String
+  content       String  @db.Text
+  lastMessageId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, channelId])
+}
+
+model ScheduledMessage {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  channelId       String
+  content         String   @db.Text
+  nextRunAt       DateTime
+  // null = send once
+  intervalMinutes Int?
+  enabled         Boolean  @default(true)
+  lastError       String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([enabled, nextRunAt])
+}
+
+// ─── Social Notifications ───────────────────────────────────────────────────
+
+model SocialFeed {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  platform   String // YOUTUBE, TWITCH
+  sourceId   String // YouTube channel ID (UC...) or Twitch login
+  label      String?
+  channelId  String
+  message    String? @db.Text
+  lastItemId String?
+  isLive     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, platform, sourceId])
+  @@index([platform])
+}
+
+// ─── Stats Channels ─────────────────────────────────────────────────────────
+
+model StatsChannel {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  channelId String
+  template  String // e.g. "Member: {members}"
+
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, channelId])
+}
+
+// ─── Leveling ───────────────────────────────────────────────────────────────
+
+model LevelConfig {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  enabled           Boolean @default(false)
+  announceChannelId String?
+  levelUpMessage    String? @db.Text
+  xpMin             Int     @default(15)
+  xpMax             Int     @default(25)
+  cooldownSeconds   Int     @default(60)
+  // [{ level: 5, roleId: "..." }]
+  rewards           Json?
+  ignoredChannels   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MemberLevel {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  userId   String
+  xp       Int       @default(0)
+  level    Int       @default(0)
+  lastXpAt DateTime?
+
+  @@unique([guildId, userId])
+  @@index([guildId, xp])
+}
+
+// ─── Giveaways ──────────────────────────────────────────────────────────────
+
+model Giveaway {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  channelId   String
+  messageId   String?
+  prize       String
+  winnerCount Int      @default(1)
+  hostId      String
+  endsAt      DateTime
+  ended       Boolean  @default(false)
+  winners     Json?
+
+  entries GiveawayEntry[]
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, ended])
+}
+
+model GiveawayEntry {
+  id         String   @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId     String
+
+  @@unique([giveawayId, userId])
+}
+
+// ─── Temporary Voice Channels ───────────────────────────────────────────────
+
+model TempVoiceConfig {
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  enabled      Boolean @default(false)
+  hubChannelId String?
+  categoryId   String?
+  nameTemplate String  @default("{user}'s room")
+  userLimit    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TempVoiceChannel {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  channelId String @unique
+  ownerId   String
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId])
 }

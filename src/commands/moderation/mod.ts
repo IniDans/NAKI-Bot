@@ -27,6 +27,9 @@ const command: Command = {
         .addStringOption((opt) => opt.setName('reason').setDescription('Reason for the ban'))
         .addIntegerOption((opt) =>
           opt.setName('delete_days').setDescription('Days of messages to delete (0-7)').setMinValue(0).setMaxValue(7),
+        )
+        .addStringOption((opt) =>
+          opt.setName('duration').setDescription('Make the ban temporary (e.g. 1d, 2w). Leave empty for permanent.'),
         ),
     )
     // â”€â”€â”€ Unban â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -168,7 +171,21 @@ const command: Command = {
         }
         const reason = interaction.options.getString('reason');
         const deleteDays = interaction.options.getInteger('delete_days') ?? 0;
-        await moderationModule.ban(interaction, user, reason, deleteDays);
+        const durationInput = interaction.options.getString('duration');
+        let durationMs: number | null = null;
+        if (durationInput) {
+          try {
+            durationMs = parseDuration(durationInput).ms;
+          } catch (error) {
+            await interaction.reply({ embeds: [embedUtils.error('Invalid Duration', (error as Error).message)], ephemeral: true });
+            return;
+          }
+          if (durationMs < 60_000 || durationMs > 365 * 86_400_000) {
+            await interaction.reply({ embeds: [embedUtils.error('Invalid Duration', 'A temporary ban must last between 1 minute and 365 days.')], ephemeral: true });
+            return;
+          }
+        }
+        await moderationModule.ban(interaction, user, reason, deleteDays, durationMs);
         break;
       }
 

@@ -6,6 +6,7 @@ import { permissionService } from '../../services/permissions/index.js';
 import { logModule } from '../logger/index.js';
 import { AutoModAction, AutoModRuleType, Colors, LogCategory } from '../../config/constants.js';
 import { parseDuration } from '../../utils/duration.js';
+import { applyEscalation, countActiveWarnings } from '../moderation/escalation.js';
 
 const prisma = db.client;
 const recentMessages = new Map<string, { content: string; timestamp: number }[]>();
@@ -108,6 +109,8 @@ async function executeAction(message: Message, violation: Violation): Promise<vo
 
   if (member && action === AutoModAction.WARN) {
     await auditService.createWarning(message.guild!.id, member.id, message.client.user!.id, reason);
+    const warnCount = await countActiveWarnings(message.guild!.id, member.id);
+    await applyEscalation(message.client, message.guild!, member, warnCount);
   }
   if (member && action === AutoModAction.TIMEOUT) {
     const duration = actionConfigDuration(violation.rule.actionConfig) ?? 60_000;
