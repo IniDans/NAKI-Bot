@@ -14,6 +14,9 @@ const envSchema = z.object({
     .union([z.literal(''), z.string().url()])
     .optional()
     .transform((value) => (value ? value.replace(/\/+$/, '') : undefined)),
+  // Twitch app credentials for live notifications. Leave empty to turn Twitch notifications off.
+  TWITCH_CLIENT_ID: z.string().optional(),
+  TWITCH_CLIENT_SECRET: z.string().optional(),
 });
 
 function validateEnv() {
