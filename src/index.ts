@@ -14,6 +14,7 @@ import { db } from './services/database/index.js';
 import { scheduler } from './services/scheduler/index.js';
 import { autoMessagesModule } from './modules/automessages/index.js';
 import { socialModule } from './modules/social/index.js';
+import { statsModule } from './modules/stats/index.js';
 import type { Command } from './types/index.js';
 
 // ─── Create Client ──────────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   }
   autoMessagesModule.startScheduler(readyClient);
   socialModule.start(readyClient);
+  statsModule.start(readyClient);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ async function shutdown(signal: string) {
   scheduler.cancelAll();
   autoMessagesModule.stop();
   socialModule.stop();
+  statsModule.stop();
   client.destroy();
   await db.disconnect();
   process.exit(0);
