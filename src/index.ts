@@ -16,6 +16,7 @@ import { autoMessagesModule } from './modules/automessages/index.js';
 import { socialModule } from './modules/social/index.js';
 import { statsModule } from './modules/stats/index.js';
 import { giveawaysModule } from './modules/giveaways/index.js';
+import { tempVoiceModule } from './modules/tempvoice/index.js';
 import type { Command } from './types/index.js';
 
 // ─── Create Client ──────────────────────────────────────────────────────────
@@ -96,6 +97,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   socialModule.start(readyClient);
   statsModule.start(readyClient);
   giveawaysModule.start(readyClient);
+  tempVoiceModule.start(readyClient);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────────────
@@ -107,6 +109,7 @@ async function shutdown(signal: string) {
   socialModule.stop();
   statsModule.stop();
   giveawaysModule.stop();
+  tempVoiceModule.stop();
   client.destroy();
   await db.disconnect();
   process.exit(0);
