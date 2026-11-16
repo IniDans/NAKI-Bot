@@ -38,6 +38,12 @@ const event: Event = {
     } catch (error) {
       appLogger.error('Auto messages handler failed', 'MessageCreate', { guildId: msg.guildId, error: error instanceof Error ? error.message : String(error) });
     }
+    try {
+      const { levelingModule } = await import('../../modules/leveling/index.js');
+      await levelingModule.handleMessage(msg);
+    } catch (error) {
+      appLogger.error('Leveling handler failed', 'MessageCreate', { guildId: msg.guildId, error: error instanceof Error ? error.message : String(error) });
+    }
   },
 };
 export default event;

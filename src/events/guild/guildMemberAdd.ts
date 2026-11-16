@@ -33,6 +33,12 @@ const event: Event = {
       } catch (error) {
         appLogger.error('Welcome handler failed', 'GuildMemberAdd', { guildId: guild.id, error: error instanceof Error ? error.message : String(error) });
       }
+      try {
+        const { levelingModule } = await import('../../modules/leveling/index.js');
+        await levelingModule.handleMemberJoin(m);
+      } catch (error) {
+        appLogger.error('Level reward restore failed', 'GuildMemberAdd', { guildId: guild.id, error: error instanceof Error ? error.message : String(error) });
+      }
     }
     try {
       const { antiraidModule } = await import('../../modules/antiraid/index.js');

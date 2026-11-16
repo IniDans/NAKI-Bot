@@ -2,6 +2,7 @@ import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   SlashCommandSubcommandsOnlyBuilder,
+  SlashCommandOptionsOnlyBuilder,
   PermissionResolvable,
   AutocompleteInteraction,
   ModalSubmitInteraction,
@@ -17,7 +18,11 @@ import {
 // ─── Command Interface ──────────────────────────────────────────────────────
 
 export interface Command {
-  data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'>;
+  data:
+    | SlashCommandBuilder
+    | SlashCommandSubcommandsOnlyBuilder
+    | SlashCommandOptionsOnlyBuilder
+    | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'>;
   /** Required user permissions to execute this command */
   requiredPermissions?: PermissionResolvable[];
   /** Required bot permissions for this command to work */
