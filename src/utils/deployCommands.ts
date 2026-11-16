@@ -1,9 +1,9 @@
 ﻿import { REST, Routes } from 'discord.js';
-import { readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
 import { config } from 'dotenv';
-import type { Command } from '../types/index.js';
+import type { Command, ContextCommand } from '../types/index.js';
 
 config();
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -30,6 +30,17 @@ async function deployCommands() {
           commands.push(command.data.toJSON());
           console.log(`Loaded: /${command.data.name}`);
         }
+      }
+    }
+    const contextPath = join(__dirname, '..', 'context');
+    for (const file of existsSync(contextPath) ? readdirSync(contextPath) : []) {
+      if (!(file.endsWith('.ts') || file.endsWith('.js')) || file.endsWith('.d.ts')) continue;
+      const module = await import(pathToFileURL(join(contextPath, file)).href);
+      const entries: ContextCommand[] = Array.isArray(module.default) ? module.default : [module.default];
+      for (const entry of entries) {
+        if (!entry?.data) continue;
+        commands.push(entry.data.toJSON());
+        console.log(`Loaded context menu: ${entry.data.name}`);
       }
     }
   } catch (error) {

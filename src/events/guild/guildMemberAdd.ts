@@ -18,6 +18,14 @@ const event: Event = {
     } catch (error) {
       appLogger.error('Failed to log member join', 'GuildMemberAdd', { guildId: guild.id, error: error instanceof Error ? error.message : String(error) });
     }
+    let stillHere = true;
+    try {
+      const { verificationModule } = await import('../../modules/verification/index.js');
+      stillHere = await verificationModule.handleMemberJoin(m);
+    } catch (error) {
+      appLogger.error('Verification handler failed', 'GuildMemberAdd', { guildId: guild.id, error: error instanceof Error ? error.message : String(error) });
+    }
+    if (!stillHere) return;
     if (!m.user.bot) {
       try {
         const { welcomeModule } = await import('../../modules/welcome/index.js');

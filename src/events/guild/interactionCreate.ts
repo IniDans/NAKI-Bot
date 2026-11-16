@@ -1,4 +1,4 @@
-﻿import { Events, ChatInputCommandInteraction, AutocompleteInteraction, GuildMember } from 'discord.js';
+﻿import { Events, ChatInputCommandInteraction, AutocompleteInteraction, GuildMember, Interaction } from 'discord.js';
 import { appLogger } from '../../utils/logger.js';
 import { rateLimiter } from '../../utils/rateLimiter.js';
 import { embedUtils } from '../../utils/embed.js';
@@ -15,6 +15,32 @@ const event: Event = {
         try { await command.autocomplete(autocompleteInteraction); } catch (error) {
           appLogger.error('Autocomplete error', 'InteractionHandler', { command: autocompleteInteraction.commandName, error: error instanceof Error ? error.message : String(error) });
         }
+      }
+      return;
+    }
+    const any = interaction as Interaction;
+    if (any.isButton() || any.isAnySelectMenu() || any.isModalSubmit()) {
+      const [prefix, ...args] = any.customId.split(':');
+      const handler = any.client.components.get(prefix);
+      if (!handler) return;
+      try {
+        await handler.execute(any, args);
+      } catch (error) {
+        appLogger.error(`Component handler failed: ${prefix}`, 'InteractionHandler', { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined, guildId: any.guildId });
+        const response = { embeds: [embedUtils.error('Something Went Wrong', 'That action failed. The error has been logged.')], ephemeral: true };
+        try { if (any.replied || any.deferred) await any.followUp(response); else await any.reply(response); } catch { /* interaction expired */ }
+      }
+      return;
+    }
+    if (any.isMessageContextMenuCommand() || any.isUserContextMenuCommand()) {
+      const contextCommand = any.client.contextCommands.get(any.commandName);
+      if (!contextCommand) return;
+      try {
+        await contextCommand.execute(any);
+      } catch (error) {
+        appLogger.error(`Context command failed: ${any.commandName}`, 'InteractionHandler', { error: error instanceof Error ? error.message : String(error), guildId: any.guildId });
+        const response = { embeds: [embedUtils.error('Something Went Wrong', 'That action failed. The error has been logged.')], ephemeral: true };
+        try { if (any.replied || any.deferred) await any.followUp(response); else await any.reply(response); } catch { /* interaction expired */ }
       }
       return;
     }

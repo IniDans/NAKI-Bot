@@ -8,6 +8,10 @@ import {
   ButtonInteraction,
   StringSelectMenuInteraction,
   Collection,
+  AnySelectMenuInteraction,
+  ContextMenuCommandBuilder,
+  MessageContextMenuCommandInteraction,
+  UserContextMenuCommandInteraction,
 } from 'discord.js';
 
 // ─── Command Interface ──────────────────────────────────────────────────────
@@ -41,7 +45,30 @@ export interface Event {
 declare module 'discord.js' {
   interface Client {
     commands: Collection<string, Command>;
+    components: Collection<string, ComponentHandler>;
+    contextCommands: Collection<string, ContextCommand>;
   }
+}
+
+// ─── Buttons, select menus and modals ───────────────────────────────────────
+
+export type ComponentInteraction = ButtonInteraction | AnySelectMenuInteraction | ModalSubmitInteraction;
+
+/**
+ * Handles every component whose customId starts with `${prefix}:`.
+ * The rest of the customId is split on ':' and passed as args, so
+ * `role:panelId:roleId` reaches the 'role' handler with ['panelId', 'roleId'].
+ */
+export interface ComponentHandler {
+  prefix: string;
+  execute: (interaction: ComponentInteraction, args: string[]) => Promise<void>;
+}
+
+// ─── Context menu commands (right-click > Apps) ─────────────────────────────
+
+export interface ContextCommand {
+  data: ContextMenuCommandBuilder;
+  execute: (interaction: MessageContextMenuCommandInteraction | UserContextMenuCommandInteraction) => Promise<void>;
 }
 
 // ─── Component Interaction Handlers ─────────────────────────────────────────

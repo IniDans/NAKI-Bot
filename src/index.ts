@@ -9,6 +9,7 @@ import { env } from './config/env.js';
 import { appLogger } from './utils/logger.js';
 import { loadCommands } from './utils/commandLoader.js';
 import { loadEvents } from './utils/eventLoader.js';
+import { loadInteractions } from './utils/interactionLoader.js';
 import { db } from './services/database/index.js';
 import { scheduler } from './services/scheduler/index.js';
 import type { Command } from './types/index.js';
@@ -25,6 +26,8 @@ const client = new Client({
     GatewayIntentBits.GuildWebhooks,
     GatewayIntentBits.GuildEmojisAndStickers,
     GatewayIntentBits.GuildIntegrations,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.DirectMessages,
   ],
   partials: [
     Partials.Message,
@@ -49,6 +52,9 @@ async function main() {
     // Load commands
     const commandCount = await loadCommands(client);
     appLogger.info(`Loaded ${commandCount} commands`, 'Boot');
+
+    const interactions = await loadInteractions(client);
+    appLogger.info(`Loaded ${interactions.components} component handlers, ${interactions.contextCommands} context commands`, 'Boot');
 
     // Load events
     const eventCount = await loadEvents(client);
