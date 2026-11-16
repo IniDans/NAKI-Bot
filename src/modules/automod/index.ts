@@ -228,12 +228,13 @@ function loadRules(guildId: string): Promise<AutoModRule[]> {
 }
 
 export const automodModule = {
-  async processMessage(message: Message<true>): Promise<void> {
+  /** Returns true when the message broke a rule, so other features can leave it alone. */
+  async processMessage(message: Message<true>): Promise<boolean> {
     const guildConfig = await guildService.getGuildConfig(message.guildId);
-    if (!guildConfig.autoModEnabled) return;
+    if (!guildConfig.autoModEnabled) return false;
 
     const rules = await loadRules(message.guildId);
-    if (rules.length === 0) return;
+    if (rules.length === 0) return false;
     const key = `${message.guildId}:${message.author.id}`;
     const now = Date.now();
     const history = (recentMessages.get(key) ?? []).filter((entry) => now - entry.timestamp < 60_000);
@@ -317,6 +318,7 @@ export const automodModule = {
       },
     };
     for (const violation of violations) await executeAction(target, violation);
+    return violations.length > 0;
   },
 
   /**

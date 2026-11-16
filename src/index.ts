@@ -12,6 +12,7 @@ import { loadEvents } from './utils/eventLoader.js';
 import { loadInteractions } from './utils/interactionLoader.js';
 import { db } from './services/database/index.js';
 import { scheduler } from './services/scheduler/index.js';
+import { autoMessagesModule } from './modules/automessages/index.js';
 import type { Command } from './types/index.js';
 
 // ─── Create Client ──────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ client.once(Events.ClientReady, async (readyClient) => {
       error: error instanceof Error ? error.message : String(error),
     });
   }
+  autoMessagesModule.startScheduler(readyClient);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 async function shutdown(signal: string) {
   appLogger.info(`Received ${signal}, shutting down...`, 'Shutdown');
   scheduler.cancelAll();
+  autoMessagesModule.stop();
   client.destroy();
   await db.disconnect();
   process.exit(0);

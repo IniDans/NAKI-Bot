@@ -24,11 +24,19 @@ const event: Event = {
         appLogger.error('Modmail relay failed', 'MessageCreate', { guildId: msg.guildId, error: error instanceof Error ? error.message : String(error) });
       }
     }
+    let violated = false;
     try {
       const { automodModule } = await import('../../modules/automod/index.js');
-      await automodModule.processMessage(msg);
+      violated = await automodModule.processMessage(msg);
     } catch (error) {
       appLogger.error('AutoMod handler failed', 'MessageCreate', { guildId: msg.guildId, error: error instanceof Error ? error.message : String(error) });
+    }
+    if (violated) return;
+    try {
+      const { autoMessagesModule } = await import('../../modules/automessages/index.js');
+      await autoMessagesModule.handleMessage(msg);
+    } catch (error) {
+      appLogger.error('Auto messages handler failed', 'MessageCreate', { guildId: msg.guildId, error: error instanceof Error ? error.message : String(error) });
     }
   },
 };
