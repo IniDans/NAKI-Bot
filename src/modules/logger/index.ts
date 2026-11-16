@@ -1,4 +1,4 @@
-import { EmbedBuilder, TextChannel, Client } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, Client } from 'discord.js';
 import { Colors, LogCategory } from '../../config/constants.js';
 import { guildService } from '../../services/database/guild.service.js';
 import { appLogger } from '../../utils/logger.js';
@@ -43,7 +43,8 @@ export const logModule = {
       }
 
       const embed = buildLogEmbed(embedData);
-      await channel.send({ embeds: [embed] });
+      const components = embedData.quickActionsFor && /^\d{17,20}$/.test(embedData.quickActionsFor) ? [quickActionRow(embedData.quickActionsFor)] : [];
+      await channel.send({ embeds: [embed], components });
     } catch (error) {
       // Logging must never block or crash — swallow and log internally
       appLogger.error('Failed to send log embed', 'LogModule', {
@@ -98,6 +99,16 @@ export const logModule = {
     }
   },
 };
+
+/** Buttons under a log entry; each opens a modal asking for the reason before acting. */
+export function quickActionRow(userId: string): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`logact:warn:${userId}`).setLabel('Warn').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`logact:timeout:${userId}`).setLabel('Timeout').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`logact:kick:${userId}`).setLabel('Kick').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`logact:ban:${userId}`).setLabel('Ban').setStyle(ButtonStyle.Danger),
+  );
+}
 
 /**
  * Build a structured log embed from LogEmbedData.

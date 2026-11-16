@@ -12,7 +12,7 @@ const event: Event = {
     const accountAgeDays = Math.floor((Date.now() - m.user.createdTimestamp) / 86_400_000);
     try {
       await logModule.sendLog(m.client, guild.id, LogCategory.MEMBER, {
-        eventType: 'Member Joined', target: { id: m.id, tag: m.user.tag }, action: 'Join', guildId: guild.id, guildName: guild.name, color: Colors.LOG_CREATE,
+        eventType: 'Member Joined', target: { id: m.id, tag: m.user.tag }, action: 'Join', guildId: guild.id, guildName: guild.name, color: Colors.LOG_CREATE, quickActionsFor: m.user.bot ? undefined : m.id,
         metadata: { 'Account Created': `<t:${Math.floor(m.user.createdTimestamp / 1000)}:R>`, 'Account Age': `${accountAgeDays} days`, 'Member Count': guild.memberCount, Bot: m.user.bot }, relevantIds: { 'User ID': m.id },
       });
     } catch (error) {

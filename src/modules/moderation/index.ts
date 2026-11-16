@@ -3,7 +3,6 @@
   Guild,
   PermissionFlagsBits,
   TextChannel,
-  ChatInputCommandInteraction,
   ChannelType,
 } from 'discord.js';
 import { permissionService } from '../../services/permissions/index.js';
@@ -16,6 +15,7 @@ import { appLogger } from '../../utils/logger.js';
 import { scheduler } from '../../services/scheduler/index.js';
 import { formatDuration } from '../../utils/duration.js';
 import { applyEscalation, countActiveWarnings } from './escalation.js';
+import type { ModerationInteraction } from '../../types/index.js';
 
 
 /**
@@ -27,7 +27,7 @@ export const moderationModule = {
    * Ban a user from the guild.
    */
   async ban(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     reason: string | null,
     deleteDays: number,
@@ -110,7 +110,7 @@ export const moderationModule = {
    * Unban a user from the guild.
    */
   async unban(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     userId: string,
     reason: string | null,
   ): Promise<void> {
@@ -180,7 +180,7 @@ export const moderationModule = {
    * Kick a user from the guild.
    */
   async kick(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     reason: string | null,
   ): Promise<void> {
@@ -244,7 +244,7 @@ export const moderationModule = {
    * Warn a user.
    */
   async warn(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     reason: string,
   ): Promise<void> {
@@ -322,7 +322,7 @@ export const moderationModule = {
    * Timeout a user (Discord native timeout).
    */
   async timeout(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     durationMs: number,
     durationHuman: string,
@@ -391,7 +391,7 @@ export const moderationModule = {
    * Remove a timeout from a user.
    */
   async untimeout(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     reason: string | null,
   ): Promise<void> {
@@ -450,7 +450,7 @@ export const moderationModule = {
    * Mute a user (role-based mute).
    */
   async mute(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     reason: string | null,
   ): Promise<void> {
@@ -533,7 +533,7 @@ export const moderationModule = {
    * Unmute a user (remove mute role).
    */
   async unmute(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     target: GuildMember,
     reason: string | null,
   ): Promise<void> {
@@ -593,7 +593,7 @@ export const moderationModule = {
    * Clear (purge) messages from a channel.
    */
   async clear(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     count: number,
     targetUser: GuildMember | null,
   ): Promise<void> {
@@ -676,7 +676,7 @@ export const moderationModule = {
    * Lock a channel (deny SendMessages for @everyone).
    */
   async lock(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     channel: TextChannel,
     reason: string | null,
   ): Promise<void> {
@@ -738,7 +738,7 @@ export const moderationModule = {
    * Unlock a channel.
    */
   async unlock(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     channel: TextChannel,
     reason: string | null,
   ): Promise<void> {
@@ -793,7 +793,7 @@ export const moderationModule = {
    * Set slowmode on a channel.
    */
   async slowmode(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     channel: TextChannel,
     seconds: number,
   ): Promise<void> {

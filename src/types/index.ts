@@ -52,6 +52,9 @@ declare module 'discord.js' {
 
 // ─── Buttons, select menus and modals ───────────────────────────────────────
 
+/** Interactions that can drive a moderation action: slash commands and the modals behind log/report buttons. */
+export type ModerationInteraction = ChatInputCommandInteraction | ModalSubmitInteraction;
+
 export type ComponentInteraction = ButtonInteraction | AnySelectMenuInteraction | ModalSubmitInteraction;
 
 /**
@@ -122,6 +125,8 @@ export interface LogEmbedData {
   after?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   color?: number;
+  /** User ID to attach Warn/Timeout/Kick/Ban buttons for; handled by src/interactions/logActions.ts. */
+  quickActionsFor?: string;
 }
 
 // ─── Security Event Data ────────────────────────────────────────────────────

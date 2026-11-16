@@ -4,11 +4,10 @@ import {
   PermissionResolvable,
   PermissionsBitField,
   Role,
-  ChatInputCommandInteraction,
 } from 'discord.js';
 import { db } from '../database/index.js';
 import { appLogger } from '../../utils/logger.js';
-import type { PermissionCheckResult } from '../../types/index.js';
+import type { ModerationInteraction, PermissionCheckResult } from '../../types/index.js';
 
 const prisma = db.client;
 
@@ -216,7 +215,7 @@ export const permissionService = {
    * Order: User permission → Bot permission → Role hierarchy → Protected target
    */
   async validateModerationAction(
-    interaction: ChatInputCommandInteraction,
+    interaction: ModerationInteraction,
     targetMember: GuildMember,
     requiredUserPerms: PermissionResolvable[],
     requiredBotPerms: PermissionResolvable[],

@@ -46,6 +46,7 @@ const event: Event = {
         guildId: guild.id,
         guildName: guild.name,
         color: Colors.LOG_DELETE,
+        quickActionsFor: author && !author.bot ? author.id : undefined,
         metadata: {
           'Content': content.substring(0, 1024) || '*Empty*',
           'Channel': `<#${msg.channelId}>`,

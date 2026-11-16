@@ -65,6 +65,7 @@ async function handleAlt(member: GuildMember, config: VerificationConfig, reason
       ...(config.altAction !== action ? { Note: `Configured action ${config.altAction} skipped: missing permission or role hierarchy` } : {}),
     },
     relevantIds: { 'User ID': member.id },
+    quickActionsFor: action === 'LOG' ? member.id : undefined,
   });
   return action !== 'LOG';
 }

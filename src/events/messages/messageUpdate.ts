@@ -27,6 +27,7 @@ const event: Event = {
         guildId: guild.id,
         guildName: guild.name,
         color: Colors.LOG_UPDATE,
+        quickActionsFor: newMsg.author?.id,
         before: { 'Content': oldContent.substring(0, 1024) || '*Empty*' },
         after: { 'Content': newContent.substring(0, 1024) || '*Empty*' },
         metadata: {
