@@ -9,6 +9,11 @@ const envSchema = z.object({
   CLIENT_ID: z.string().min(1, 'CLIENT_ID is required'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Public dashboard address, used for ban appeal links in DMs. Leave empty to skip them.
+  DASHBOARD_URL: z
+    .union([z.literal(''), z.string().url()])
+    .optional()
+    .transform((value) => (value ? value.replace(/\/+$/, '') : undefined)),
 });
 
 function validateEnv() {

@@ -14,6 +14,7 @@ import { embedUtils } from '../../utils/embed.js';
 import { appLogger } from '../../utils/logger.js';
 import { scheduler } from '../../services/scheduler/index.js';
 import { formatDuration } from '../../utils/duration.js';
+import { appealUrl } from './appeal.js';
 import { applyEscalation, countActiveWarnings } from './escalation.js';
 import type { ModerationInteraction } from '../../types/index.js';
 
@@ -51,7 +52,15 @@ export const moderationModule = {
     // DM the user before banning (may fail if DMs are closed)
     try {
       await target.send({
-        embeds: [embedUtils.dmNotification(guild.name, durationMs ? `Banned for ${formatDuration(durationMs)}` : 'Banned', reason)],
+        embeds: [
+          embedUtils.dmNotification(
+            guild.name,
+            durationMs ? `Banned for ${formatDuration(durationMs)}` : 'Banned',
+            reason,
+            null,
+            await appealUrl(guild.id),
+          ),
+        ],
       });
     } catch {
       // DMs closed â€” continue with ban

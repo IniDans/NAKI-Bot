@@ -13,6 +13,7 @@ import { appLogger } from '../../utils/logger.js';
 const prisma = db.client;
 
 export { ESCALATION_ACTIONS, parseSteps, type EscalationAction, type EscalationStep } from './steps.js';
+import { appealUrl } from './appeal.js';
 import { parseSteps, type EscalationStep } from './steps.js';
 
 /** Warnings that still count: all of them, or only those newer than the configured expiry. */
@@ -76,7 +77,17 @@ export async function applyEscalation(client: Client, guild: Guild, member: Guil
       case 'TEMPBAN': {
         const temporary = step.action === 'TEMPBAN' && ms !== null;
         await member
-          .send({ embeds: [embedUtils.dmNotification(guild.name, temporary ? 'Temporarily banned' : 'Banned', reason)] })
+          .send({
+            embeds: [
+              embedUtils.dmNotification(
+                guild.name,
+                temporary ? 'Temporarily banned' : 'Banned',
+                reason,
+                null,
+                await appealUrl(guild.id),
+              ),
+            ],
+          })
           .catch(() => undefined);
         await member.ban({ reason });
         if (temporary) {

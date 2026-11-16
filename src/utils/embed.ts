@@ -64,6 +64,7 @@ export const embedUtils = {
     action: string,
     reason: string | null,
     duration?: string | null,
+    appealUrl?: string | null,
   ): EmbedBuilder {
     const embed = new EmbedBuilder()
       .setColor(Colors.WARNING)
@@ -76,6 +77,9 @@ export const embedUtils = {
 
     if (duration) {
       embed.addFields({ name: 'Duration', value: duration, inline: true });
+    }
+    if (appealUrl) {
+      embed.addFields({ name: 'Appeal', value: `You can appeal this ban here: ${appealUrl}` });
     }
 
     return embed;
