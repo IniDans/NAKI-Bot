@@ -56,6 +56,7 @@ export enum ModerationAction {
   LOCK = 'LOCK',
   UNLOCK = 'UNLOCK',
   SLOWMODE = 'SLOWMODE',
+  ADDROLE = 'ADDROLE',
   TEMPROLE = 'TEMPROLE',
   REMOVEROLE = 'REMOVEROLE',
   ANNOUNCE = 'ANNOUNCE',

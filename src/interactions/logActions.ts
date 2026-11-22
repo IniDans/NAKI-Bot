@@ -67,7 +67,7 @@ const handler: ComponentHandler = {
     if (!interaction.isModalSubmit()) return;
     const target = await interaction.guild.members.fetch(userId).catch(() => null);
     if (!target) {
-      await interaction.reply({ embeds: [embedUtils.error('Not a Member', 'That user is no longer in the server. Use `/mod ban` with their ID if needed.')], ephemeral: true });
+      await interaction.reply({ embeds: [embedUtils.error('Not a Member', 'That person already left the server, so this button cannot act on them.')], ephemeral: true });
       return;
     }
     const reason = interaction.fields.getTextInputValue('reason').trim() || null;

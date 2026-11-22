@@ -43,7 +43,7 @@ async function buildCard(member: GuildMember, accent: string | null): Promise<At
   }
 }
 
-/** Text, optional embed and optional image card, shared by real joins and /welcome test. */
+/** Text, optional embed and optional image card, used for every join. */
 async function buildPayload(member: GuildMember, config: WelcomeConfig): Promise<MessageCreateOptions> {
   const content = buildWelcomeContent(member, config.message ?? DEFAULT_WELCOME_MESSAGE);
   const card = config.cardEnabled ? await buildCard(member, config.cardAccent) : null;
@@ -75,9 +75,6 @@ async function buildPayload(member: GuildMember, config: WelcomeConfig): Promise
 }
 
 export const welcomeModule = {
-  async sendPreview(member: GuildMember, channel: TextChannel, config: WelcomeConfig): Promise<void> {
-    await channel.send(await buildPayload(member, config));
-  },
 
   async handleMemberJoin(member: GuildMember): Promise<boolean> {
     const config = await guildService.getWelcomeConfig(member.guild.id);

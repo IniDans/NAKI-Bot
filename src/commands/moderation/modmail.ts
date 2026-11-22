@@ -6,9 +6,9 @@ import type { Command } from '../../types/index.js';
 const command: Command = {
   data: new SlashCommandBuilder()
     .setName('modmail')
-    .setDescription('Modmail conversations')
+    .setDescription('Private conversations between members and moderators')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addSubcommand((sub) => sub.setName('close').setDescription('Close the modmail conversation in this thread')),
+    .addSubcommand((sub) => sub.setName('close').setDescription('Close this conversation (use it inside the modmail thread)')),
   requiredPermissions: [PermissionFlagsBits.ModerateMembers],
   rateLimitCategory: 'MODERATION',
 
