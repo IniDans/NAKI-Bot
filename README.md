@@ -71,6 +71,21 @@ npm run build
 npm start
 ```
 
+### Running on a Windows laptop with pm2
+
+`ecosystem.config.cjs` runs `dist/index.js` under pm2, restarting it after a crash (with backoff) and writing logs to `%USERPROFILE%\.pm2\logs`.
+
+```powershell
+npm install -g pm2
+npm run build
+pm2 start ecosystem.config.cjs
+pm2 save                 # remember the process list for `pm2 resurrect`
+pm2 logs naki            # follow logs
+pm2 restart naki         # after a new build
+```
+
+To start the bot again after a reboot, add a Task Scheduler task that runs `pm2 resurrect` at logon. The laptop must stay awake and online: set sleep to "Never" while plugged in, and keep it running when the lid is closed. If the home IP changes, update cPanel → Remote MySQL, or the bot fails with "Can't reach database server".
+
 ## Commands
 
 - `/mod ...`
