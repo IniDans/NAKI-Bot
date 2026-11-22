@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, Client } from 'discord.js';
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, TextChannel, Client } from 'discord.js';
 import { Colors, LogCategory } from '../../config/constants.js';
 import { guildService } from '../../services/database/guild.service.js';
 import { appLogger } from '../../utils/logger.js';
@@ -20,27 +20,8 @@ export const logModule = {
     embedData: LogEmbedData,
   ): Promise<void> {
     try {
-      const logConfig = await guildService.getLogConfig(guildId);
-      const guildConfig = await guildService.getGuildConfig(guildId);
-
-      // Check if logging is enabled
-      if (!guildConfig.loggingEnabled) return;
-
-      // Get the channel ID for this category
-      const channelId = getChannelForCategory(logConfig, category);
-      if (!channelId) return;
-
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) return;
-
-      const channel = guild.channels.cache.get(channelId);
-      if (!channel || !(channel instanceof TextChannel)) {
-        appLogger.warn(`Log channel ${channelId} not found or not text channel`, 'LogModule', {
-          guildId,
-          category,
-        });
-        return;
-      }
+      const channel = await resolveLogChannel(client, guildId, category);
+      if (!channel) return;
 
       const embed = buildLogEmbed(embedData);
       const components = embedData.quickActionsFor && /^\d{17,20}$/.test(embedData.quickActionsFor) ? [quickActionRow(embedData.quickActionsFor)] : [];
@@ -48,6 +29,41 @@ export const logModule = {
     } catch (error) {
       // Logging must never block or crash — swallow and log internally
       appLogger.error('Failed to send log embed', 'LogModule', {
+        error: error instanceof Error ? error.message : String(error),
+        guildId,
+        category,
+      });
+    }
+  },
+
+  /**
+   * Send a prebuilt log message (embeds plus uploaded files) to the category's log channel.
+   * If the upload is rejected (e.g. over the server's size limit) it is resent without files.
+   * Non-blocking like sendLog.
+   */
+  async sendMessage(
+    client: Client,
+    guildId: string,
+    category: LogCategory,
+    message: { embeds: EmbedBuilder[]; files?: AttachmentBuilder[]; fallbackEmbeds?: EmbedBuilder[]; quickActionsFor?: string },
+  ): Promise<void> {
+    try {
+      const channel = await resolveLogChannel(client, guildId, category);
+      if (!channel) return;
+      const components = message.quickActionsFor && /^\d{17,20}$/.test(message.quickActionsFor) ? [quickActionRow(message.quickActionsFor)] : [];
+      try {
+        await channel.send({ embeds: message.embeds, files: message.files ?? [], components });
+      } catch (error) {
+        if (!message.files?.length) throw error;
+        appLogger.warn('Log upload failed, resending without files', 'LogModule', {
+          guildId,
+          category,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        await channel.send({ embeds: message.fallbackEmbeds ?? message.embeds.slice(0, 1), components });
+      }
+    } catch (error) {
+      appLogger.error('Failed to send log message', 'LogModule', {
         error: error instanceof Error ? error.message : String(error),
         guildId,
         category,
@@ -179,6 +195,29 @@ function buildLogEmbed(data: LogEmbedData): EmbedBuilder {
   });
 
   return embed;
+}
+
+/** The text channel a category logs to, or null when logging is off or it isn't set up. */
+async function resolveLogChannel(client: Client, guildId: string, category: LogCategory): Promise<TextChannel | null> {
+  const logConfig = await guildService.getLogConfig(guildId);
+  const guildConfig = await guildService.getGuildConfig(guildId);
+  if (!guildConfig.loggingEnabled) return null;
+
+  const channelId = getChannelForCategory(logConfig, category);
+  if (!channelId) return null;
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return null;
+
+  const channel = guild.channels.cache.get(channelId);
+  if (!channel || !(channel instanceof TextChannel)) {
+    appLogger.warn(`Log channel ${channelId} not found or not text channel`, 'LogModule', {
+      guildId,
+      category,
+    });
+    return null;
+  }
+  return channel;
 }
 
 /**

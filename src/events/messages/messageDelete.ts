@@ -1,6 +1,9 @@
-import { Events, Message, PartialMessage, AuditLogEvent } from 'discord.js';
+import { Events, Message, PartialMessage } from 'discord.js';
 import { logModule } from '../../modules/logger/index.js';
-import { Colors, LogCategory } from '../../config/constants.js';
+import { attachmentCache } from '../../modules/logger/attachmentCache.js';
+import { findMessageDeleter } from '../../modules/logger/deleteAudit.js';
+import { buildDeleteLog } from '../../modules/logger/messageLog.js';
+import { LogCategory } from '../../config/constants.js';
 import { appLogger } from '../../utils/logger.js';
 import type { Event } from '../../types/index.js';
 
@@ -9,60 +12,41 @@ const event: Event = {
   async execute(message: unknown) {
     const msg = message as Message | PartialMessage;
 
-    // Ignore partial messages with no content, bots, and DMs
+    // Ignore bots and DMs. Uncached messages (author unknown) are still logged.
     if (!msg.guild) return;
     if (msg.author?.bot) return;
 
     const guild = msg.guild;
-    const content = msg.content ?? '*Content not cached*';
-    const author = msg.author;
+    const author = msg.author ?? null;
+    const attachments = [...(msg.attachments?.values() ?? [])];
 
-    // Attempt to find who deleted the message from audit logs
-    let deletedBy: string | null = null;
     try {
-      const auditLogs = await guild.fetchAuditLogs({
-        type: AuditLogEvent.MessageDelete,
-        limit: 1,
+      const deleter = author
+        ? await findMessageDeleter(guild, author.id, msg.channelId)
+        : ({ kind: 'unknown', reason: 'message was not cached' } as const);
+
+      const log = await buildDeleteLog({
+        guild,
+        channelId: msg.channelId,
+        messageId: msg.id,
+        author,
+        content: msg.partial ? null : msg.content,
+        createdTimestamp: msg.createdTimestamp || null,
+        attachments,
+        deleter,
       });
-      const entry = auditLogs.entries.first();
-      if (
-        entry &&
-        entry.target?.id === author?.id &&
-        entry.createdTimestamp > Date.now() - 5000
-      ) {
-        deletedBy = entry.executor?.tag ?? null;
-      }
-    } catch {
-      // May not have audit log permissions
-    }
 
-    try {
-      const attachments = msg.attachments?.map((a) => a.url).join(', ') || null;
-
-      await logModule.sendLog(msg.client, guild.id, LogCategory.MESSAGE, {
-        eventType: 'Message Deleted',
-        target: author ? { id: author.id, tag: author.tag } : { id: 'Unknown' },
-        action: 'Delete',
-        guildId: guild.id,
-        guildName: guild.name,
-        color: Colors.LOG_DELETE,
+      await logModule.sendMessage(msg.client, guild.id, LogCategory.MESSAGE, {
+        ...log,
         quickActionsFor: author && !author.bot ? author.id : undefined,
-        metadata: {
-          'Content': content.substring(0, 1024) || '*Empty*',
-          'Channel': `<#${msg.channelId}>`,
-          ...(deletedBy ? { 'Deleted By': deletedBy } : {}),
-          ...(attachments ? { 'Attachments': attachments.substring(0, 512) } : {}),
-        },
-        relevantIds: {
-          'Message ID': msg.id,
-          ...(author ? { 'Author ID': author.id } : {}),
-        },
       });
     } catch (error) {
       appLogger.error('Failed to log message delete', 'MessageDelete', {
         error: error instanceof Error ? error.message : String(error),
         guildId: guild.id,
       });
+    } finally {
+      attachmentCache.forget(attachments.map((a) => a.id));
     }
   },
 };

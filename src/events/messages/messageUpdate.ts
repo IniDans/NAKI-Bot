@@ -1,6 +1,8 @@
 import { Events, Message, PartialMessage } from 'discord.js';
 import { logModule } from '../../modules/logger/index.js';
-import { Colors, LogCategory } from '../../config/constants.js';
+import { attachmentCache } from '../../modules/logger/attachmentCache.js';
+import { buildEditLog } from '../../modules/logger/messageLog.js';
+import { LogCategory } from '../../config/constants.js';
 import { appLogger } from '../../utils/logger.js';
 import type { Event } from '../../types/index.js';
 
@@ -10,40 +12,46 @@ const event: Event = {
     const oldMsg = oldMessage as Message | PartialMessage;
     const newMsg = newMessage as Message | PartialMessage;
 
-    // Ignore bots, DMs, and embed-only updates
+    // Ignore bots and DMs
     if (!newMsg.guild) return;
     if (newMsg.author?.bot) return;
-    if (oldMsg.content === newMsg.content) return; // Embed preview, link unfurl, etc.
+    // A real edit moves editedTimestamp; link unfurls and embed updates don't.
+    if (!newMsg.editedTimestamp) return;
+    if (!oldMsg.partial && oldMsg.editedTimestamp === newMsg.editedTimestamp) return;
+
+    // Attachments can only be removed by an edit, never added.
+    const removedAttachments = oldMsg.partial
+      ? []
+      : [...oldMsg.attachments.values()].filter((a) => !newMsg.attachments.has(a.id));
+    const before = oldMsg.partial ? null : oldMsg.content;
+    const after = newMsg.content;
+    // Same text and nothing removed: an embed preview or link unfurl, not a user edit.
+    if (before === after && removedAttachments.length === 0) return;
+    if (before === null && after === null) return;
 
     const guild = newMsg.guild;
-    const oldContent = oldMsg.content ?? '*Not cached*';
-    const newContent = newMsg.content ?? '*Not cached*';
-
     try {
-      await logModule.sendLog(newMsg.client, guild.id, LogCategory.MESSAGE, {
-        eventType: 'Message Edited',
-        target: newMsg.author ? { id: newMsg.author.id, tag: newMsg.author.tag } : { id: 'Unknown' },
-        action: 'Edit',
-        guildId: guild.id,
-        guildName: guild.name,
-        color: Colors.LOG_UPDATE,
+      const log = await buildEditLog({
+        guild,
+        channelId: newMsg.channelId,
+        messageId: newMsg.id,
+        url: newMsg.url,
+        author: newMsg.author ?? null,
+        before,
+        after,
+        removedAttachments,
+      });
+      await logModule.sendMessage(newMsg.client, guild.id, LogCategory.MESSAGE, {
+        ...log,
         quickActionsFor: newMsg.author?.id,
-        before: { 'Content': oldContent.substring(0, 1024) || '*Empty*' },
-        after: { 'Content': newContent.substring(0, 1024) || '*Empty*' },
-        metadata: {
-          'Channel': `<#${newMsg.channelId}>`,
-          'Jump to Message': `[Click here](${newMsg.url})`,
-        },
-        relevantIds: {
-          'Message ID': newMsg.id,
-          ...(newMsg.author ? { 'Author ID': newMsg.author.id } : {}),
-        },
       });
     } catch (error) {
       appLogger.error('Failed to log message edit', 'MessageUpdate', {
         error: error instanceof Error ? error.message : String(error),
         guildId: guild.id,
       });
+    } finally {
+      attachmentCache.forget(removedAttachments.map((a) => a.id));
     }
   },
 };

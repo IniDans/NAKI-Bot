@@ -1,5 +1,6 @@
 ﻿import { Events, Message } from 'discord.js';
 import { appLogger } from '../../utils/logger.js';
+import { attachmentCache } from '../../modules/logger/attachmentCache.js';
 import type { Event } from '../../types/index.js';
 
 const event: Event = {
@@ -16,6 +17,8 @@ const event: Event = {
       }
       return;
     }
+    // Save images now so the delete log can still show them (and before AutoMod deletes them).
+    if (msg.attachments.size) attachmentCache.remember(msg.guildId, msg.attachments.values());
     if (msg.channel.isThread()) {
       try {
         const { modmailModule } = await import('../../modules/modmail/index.js');
