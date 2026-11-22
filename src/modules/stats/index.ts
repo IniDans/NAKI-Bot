@@ -105,6 +105,11 @@ export const statsModule = {
     timer.unref();
   },
 
+  /** Update names now (e.g. after a template change on the dashboard). Unchanged names are skipped. */
+  updateNow(client: Client): void {
+    void updateAll(client);
+  },
+
   stop(): void {
     if (firstTimer) clearTimeout(firstTimer);
     if (timer) clearInterval(timer);

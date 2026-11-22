@@ -17,6 +17,7 @@ import { socialModule } from './modules/social/index.js';
 import { statsModule } from './modules/stats/index.js';
 import { giveawaysModule } from './modules/giveaways/index.js';
 import { tempVoiceModule } from './modules/tempvoice/index.js';
+import { dashboardSyncModule } from './modules/dashboardSync/index.js';
 import type { Command } from './types/index.js';
 
 // ─── Create Client ──────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   statsModule.start(readyClient);
   giveawaysModule.start(readyClient);
   tempVoiceModule.start(readyClient);
+  dashboardSyncModule.start(readyClient);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────────────
@@ -110,6 +112,7 @@ async function shutdown(signal: string) {
   statsModule.stop();
   giveawaysModule.stop();
   tempVoiceModule.stop();
+  dashboardSyncModule.stop();
   client.destroy();
   await db.disconnect();
   process.exit(0);

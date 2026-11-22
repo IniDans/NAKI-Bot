@@ -93,6 +93,10 @@ async function announce(message: Message<true>, settings: LevelSettings, level: 
 }
 
 export const levelingModule = {
+  invalidate(guildId: string): void {
+    cache.delete(guildId);
+  },
+
   async handleMessage(message: Message<true>): Promise<void> {
     if (message.author.bot || message.webhookId) return;
     const settings = await settingsFor(message.guildId);

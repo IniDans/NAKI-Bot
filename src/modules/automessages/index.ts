@@ -167,6 +167,16 @@ export const autoMessagesModule = {
     if (rules.stickies.has(message.channelId)) scheduleSticky(message);
   },
 
+  /** Drop cached responders and stickies so the next message reads the dashboard's latest. */
+  invalidate(guildId: string): void {
+    cache.delete(guildId);
+  },
+
+  /** Send scheduled messages that are due now instead of waiting for the next poll. */
+  runDueNow(client: Client): void {
+    void runDueMessages(client);
+  },
+
   startScheduler(client: Client): void {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(() => void runDueMessages(client), SCHEDULE_POLL_MS);

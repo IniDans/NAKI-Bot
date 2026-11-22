@@ -111,6 +111,11 @@ export const giveawaysModule = {
     pollTimer.unref();
   },
 
+  /** Check for giveaways that are due right away (e.g. ended from the dashboard). */
+  pollNow(): void {
+    void pollDue();
+  },
+
   stop(): void {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;

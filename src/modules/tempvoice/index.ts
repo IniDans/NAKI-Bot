@@ -217,6 +217,10 @@ export const tempVoiceModule = {
   handleVoiceState,
   setOwner,
 
+  invalidate(guildId: string): void {
+    configCache.delete(guildId);
+  },
+
   /** The owner of a live room, or null if the channel is not a temporary room. */
   ownerOf(channelId: string): string | null {
     return rooms.get(channelId) ?? null;
