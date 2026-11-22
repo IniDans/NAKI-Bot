@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextOwner, renderRoomName } from '../modules/tempvoice/logic.js';
+import { checkClaim, cleanRoomName, parseUserLimit, renderRoomName, roomState } from '../modules/tempvoice/logic.js';
 
 const member = { displayName: 'Ardan', username: 'dansyoung' };
 
@@ -17,14 +17,63 @@ describe('renderRoomName', () => {
   });
 });
 
-describe('nextOwner', () => {
-  it('skips bots and the leaving owner', () => {
-    const members = [
-      { id: '1', bot: false },
-      { id: '2', bot: true },
-      { id: '3', bot: false },
-    ];
-    expect(nextOwner(members, '1')).toBe('3');
-    expect(nextOwner([{ id: '2', bot: true }], '1')).toBeNull();
+describe('cleanRoomName', () => {
+  it('collapses whitespace and rejects empty names', () => {
+    expect(cleanRoomName('  chill   room ')).toBe('chill room');
+    expect(cleanRoomName('   ')).toBeNull();
+    expect(cleanRoomName('x'.repeat(150))).toHaveLength(100);
+  });
+});
+
+describe('parseUserLimit', () => {
+  it('accepts 0-99 and treats blank as no limit', () => {
+    expect(parseUserLimit('5')).toBe(5);
+    expect(parseUserLimit(' 99 ')).toBe(99);
+    expect(parseUserLimit('')).toBe(0);
+    expect(parseUserLimit('0')).toBe(0);
+  });
+  it('rejects anything else', () => {
+    expect(parseUserLimit('100')).toBeNull();
+    expect(parseUserLimit('-1')).toBeNull();
+    expect(parseUserLimit('abc')).toBeNull();
+    expect(parseUserLimit('2.5')).toBeNull();
+  });
+});
+
+describe('roomState', () => {
+  const VIEW = 1n << 10n;
+  const SEND = 1n << 11n;
+  const CONNECT = 1n << 20n;
+  const overwrite = (id: string, type: number, allow = 0n, deny = 0n) => ({ id, type, allow, deny });
+
+  it('reads an open room', () => {
+    const state = roomState([overwrite('owner', 1, VIEW | CONNECT), overwrite('bot', 1, VIEW | CONNECT)], 'guild', 'owner', 'bot');
+    expect(state).toEqual({ locked: false, hidden: false, chatOff: false, trusted: [], blocked: [] });
+  });
+
+  it('reads lock, hide, chat and the member lists', () => {
+    const state = roomState(
+      [
+        overwrite('guild', 0, 0n, CONNECT | VIEW | SEND),
+        overwrite('owner', 1, VIEW | CONNECT | SEND),
+        overwrite('bot', 1, VIEW | CONNECT),
+        overwrite('friend', 1, VIEW | CONNECT | SEND),
+        overwrite('pest', 1, 0n, CONNECT),
+        overwrite('some-role', 0, CONNECT),
+      ],
+      'guild',
+      'owner',
+      'bot',
+    );
+    expect(state).toEqual({ locked: true, hidden: true, chatOff: true, trusted: ['friend'], blocked: ['pest'] });
+  });
+});
+
+describe('checkClaim', () => {
+  it('only lets someone in the room claim it after the owner left', () => {
+    expect(checkClaim({ ownerId: 'o', claimerId: 'a', memberIds: ['a'] })).toBe('ok');
+    expect(checkClaim({ ownerId: 'o', claimerId: 'a', memberIds: ['a', 'o'] })).toBe('owner-present');
+    expect(checkClaim({ ownerId: 'o', claimerId: 'a', memberIds: ['b'] })).toBe('not-in-room');
+    expect(checkClaim({ ownerId: 'o', claimerId: 'o', memberIds: ['a'] })).toBe('already-owner');
   });
 });

@@ -52,5 +52,6 @@ describe('slash command definitions', () => {
     expect(commands.length).toBeGreaterThan(0);
     const problems = commands.flatMap((c) => requiredAfterOptional(`/${c.name}`, c.options));
     expect(problems).toEqual([]);
-  });
+    // Importing every command file is slow while the other test files run in parallel.
+  }, 30_000);
 });

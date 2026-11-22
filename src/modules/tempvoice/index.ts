@@ -10,7 +10,8 @@ import {
 } from 'discord.js';
 import { db } from '../../services/database/index.js';
 import { appLogger } from '../../utils/logger.js';
-import { nextOwner, renderRoomName } from './logic.js';
+import { renderRoomName } from './logic.js';
+import { forgetPanel, postPanel, refreshPanel } from './panel.js';
 
 const prisma = db.client;
 
@@ -20,9 +21,19 @@ const CREATE_COOLDOWN_MS = 10_000;
 /** Rooms left behind while the bot was offline, or whose channel was deleted by hand, are cleaned up this often. */
 const SWEEP_MS = 15 * 60_000;
 
-/** What the owner of a room may do to it: rename, set a limit, move or disconnect people. */
-const OWNER_PERMS = { ViewChannel: true, Connect: true, ManageChannels: true, MoveMembers: true } as const;
+/** What the owner of a room may do to it: rename, set a limit, move or disconnect people, and chat when chat is off. */
+const OWNER_PERMS = { ViewChannel: true, Connect: true, SendMessages: true, ManageChannels: true, MoveMembers: true } as const;
 const OWNER_ALLOW = (Object.keys(OWNER_PERMS) as (keyof typeof OWNER_PERMS)[]).map((name) => PermissionFlagsBits[name]);
+/** The bot keeps access to a room it manages even when the owner hides or locks it. */
+const BOT_ALLOW = [
+  PermissionFlagsBits.ViewChannel,
+  PermissionFlagsBits.Connect,
+  PermissionFlagsBits.SendMessages,
+  PermissionFlagsBits.EmbedLinks,
+  PermissionFlagsBits.ReadMessageHistory,
+  PermissionFlagsBits.ManageChannels,
+  PermissionFlagsBits.MoveMembers,
+];
 
 type Config = {
   enabled: boolean;
@@ -52,6 +63,7 @@ async function configFor(guildId: string): Promise<Config | null> {
 
 async function forgetRoom(channelId: string): Promise<void> {
   rooms.delete(channelId);
+  forgetPanel(channelId);
   await prisma.tempVoiceChannel.deleteMany({ where: { channelId } });
 }
 
@@ -89,7 +101,10 @@ async function createRoom(member: GuildMember, hub: VoiceBasedChannel, config: C
       parent,
       userLimit: config.userLimit,
       bitrate: hub.bitrate,
-      permissionOverwrites: [{ id: member.id, type: OverwriteType.Member, allow: OWNER_ALLOW }],
+      permissionOverwrites: [
+        { id: member.id, type: OverwriteType.Member, allow: OWNER_ALLOW },
+        { id: member.client.user.id, type: OverwriteType.Member, allow: BOT_ALLOW },
+      ],
       reason: `Temporary voice room for ${member.user.tag}`,
     });
   } catch (error) {
@@ -110,26 +125,41 @@ async function createRoom(member: GuildMember, hub: VoiceBasedChannel, config: C
   } catch {
     // They left the hub before the room was ready.
     if (channel.members.size === 0) await deleteRoom(channel);
+    return;
   }
+
+  await postPanel(channel, member.id).catch((error) => {
+    appLogger.warn('Could not post voice room panel', 'TempVoice', {
+      channelId: channel.id,
+      error: errorMessage(error),
+    });
+  });
 }
 
-/** The owner left but others stayed: the room passes to someone still in it. */
-async function handOver(channel: VoiceBasedChannel, oldOwnerId: string): Promise<void> {
-  const heir = nextOwner(
-    channel.members.map((m) => ({ id: m.id, bot: m.user.bot })),
-    oldOwnerId,
-  );
-  if (!heir) return;
-  rooms.set(channel.id, heir);
-  await prisma.tempVoiceChannel.updateMany({ where: { channelId: channel.id }, data: { ownerId: heir } });
+/**
+ * Make someone else the owner (Transfer or Claim). The old owner loses their owner
+ * permissions; the new owner's overwrite replaces any trust or kick they had.
+ */
+async function setOwner(channel: VoiceBasedChannel, newOwnerId: string, reason: string): Promise<void> {
+  const oldOwnerId = rooms.get(channel.id);
+  rooms.set(channel.id, newOwnerId);
+  await prisma.tempVoiceChannel.updateMany({ where: { channelId: channel.id }, data: { ownerId: newOwnerId } });
+  if (oldOwnerId && oldOwnerId !== newOwnerId) {
+    await channel.permissionOverwrites.delete(oldOwnerId, reason).catch(() => undefined);
+  }
+  await channel.permissionOverwrites.create(newOwnerId, OWNER_PERMS, { reason, type: OverwriteType.Member });
+}
+
+/** The owner left but others stayed: the room keeps its owner until someone claims it. */
+async function ownerLeft(channel: VoiceBasedChannel, ownerId: string): Promise<void> {
   try {
-    await channel.permissionOverwrites.delete(oldOwnerId, 'Room owner left');
-    await channel.permissionOverwrites.create(heir, OWNER_PERMS, {
-      reason: 'New room owner',
-      type: OverwriteType.Member,
+    await refreshPanel(channel, ownerId);
+    await channel.send({
+      content: `<@${ownerId}> left the room. Anyone here can press **Claim** on the panel to take over.`,
+      allowedMentions: { parse: [] },
     });
   } catch (error) {
-    appLogger.warn('Could not hand over voice room', 'TempVoice', {
+    appLogger.warn('Could not announce that the room owner left', 'TempVoice', {
       channelId: channel.id,
       error: errorMessage(error),
     });
@@ -140,7 +170,7 @@ async function handleVoiceState(oldState: VoiceState, newState: VoiceState): Pro
   if (oldState.channelId === newState.channelId) return;
   const guild = newState.guild;
 
-  // Leaving a room: delete it when empty, otherwise hand it over if the owner was the one leaving.
+  // Leaving a room: delete it when empty, otherwise tell the others they can claim it if the owner left.
   if (oldState.channelId && rooms.has(oldState.channelId)) {
     const channel = oldState.channel;
     if (!channel) {
@@ -148,8 +178,14 @@ async function handleVoiceState(oldState: VoiceState, newState: VoiceState): Pro
     } else if (channel.members.filter((m) => !m.user.bot).size === 0) {
       await deleteRoom(channel);
     } else if (rooms.get(channel.id) === oldState.id) {
-      await handOver(channel, oldState.id);
+      await ownerLeft(channel, oldState.id);
     }
+  }
+
+  // The owner coming back: the panel stops offering Claim. A brand-new room's panel is
+  // still being posted by createRoom, so never post one from here.
+  if (newState.channelId && rooms.get(newState.channelId) === newState.id && newState.channel) {
+    await refreshPanel(newState.channel, newState.id, false).catch(() => undefined);
   }
 
   // Joining the hub: create a room and move the member into it.
@@ -179,6 +215,12 @@ async function sweep(client: Client): Promise<void> {
 
 export const tempVoiceModule = {
   handleVoiceState,
+  setOwner,
+
+  /** The owner of a live room, or null if the channel is not a temporary room. */
+  ownerOf(channelId: string): string | null {
+    return rooms.get(channelId) ?? null;
+  },
 
   start(client: Client): void {
     const run = () =>
