@@ -1,9 +1,8 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { musicModule } from '../../modules/music/index.js';
 import { memberOf, replyError } from '../../modules/music/commands.js';
-import { formatDuration } from '../../modules/music/logic.js';
+import { formatDuration, MAX_QUEUE_SIZE } from '../../modules/music/logic.js';
 import { MusicError, resolve, type Resolved } from '../../modules/music/sources.js';
-import { MAX_QUEUE } from '../../modules/music/player.js';
 import { embedUtils } from '../../utils/embed.js';
 import { appLogger } from '../../utils/logger.js';
 import type { Command } from '../../types/index.js';
@@ -11,11 +10,11 @@ import type { Command } from '../../types/index.js';
 const command: Command = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Play a song from a YouTube or Spotify link, or search by title')
+    .setDescription('Play music: type a song title, or paste a YouTube or Spotify link (playlists work too)')
     .addStringOption((o) =>
-      o.setName('query').setDescription('YouTube/Spotify link (song, playlist, album) or a song title').setRequired(true).setMaxLength(300),
+      o.setName('song').setDescription('Song title (e.g. "tulus hati-hati di jalan") or a YouTube/Spotify link').setRequired(true).setMaxLength(300),
     )
-    .addBooleanOption((o) => o.setName('next').setDescription('Play it right after the current song')),
+    .addBooleanOption((o) => o.setName('next').setDescription('Choose True to play it right after the current song')),
   rateLimitCategory: 'DEFAULT',
   guildOnly: true,
   async execute(interaction: ChatInputCommandInteraction) {
@@ -26,7 +25,7 @@ const command: Command = {
     if (!textChannel || textChannel.isDMBased()) return replyError(interaction, 'Use this in a server channel.');
 
     await interaction.deferReply();
-    const query = interaction.options.getString('query', true);
+    const query = interaction.options.getString('song', true);
     let resolved: Resolved;
     try {
       resolved = await resolve(query, interaction.user.id);
@@ -53,7 +52,7 @@ const command: Command = {
     const wasIdle = !session.current;
     const next = interaction.options.getBoolean('next') ?? false;
     const added = session.add(resolved.tracks, next);
-    if (added === 0) return replyError(interaction, `The queue is full (${MAX_QUEUE} songs).`);
+    if (added === 0) return replyError(interaction, `The queue is full (${MAX_QUEUE_SIZE} songs). Wait for some to finish, or clear it in \`/queue\`.`);
 
     const first = resolved.tracks[0];
     let embed;
@@ -61,7 +60,15 @@ const command: Command = {
       const skipped = resolved.tracks.length - added;
       embed = embedUtils.success(
         `Added ${added} songs`,
-        `From **${resolved.collection}**.${skipped ? ` ${skipped} didn't fit in the queue.` : ''}${wasIdle ? '' : ` Starting at position ${next ? 1 : session.queue.length - added + 1}.`}`,
+        [
+          `From **${resolved.collection}**.`,
+          skipped ? `${skipped} didn't fit, because the queue holds up to ${MAX_QUEUE_SIZE} songs.` : '',
+          resolved.capped ? 'Spotify only shares the first 100 songs of a playlist.' : '',
+          wasIdle ? '' : `They start at position ${next ? 1 : session.queue.length - added + 1}.`,
+          'Use `/queue` to see or change the list.',
+        ]
+          .filter(Boolean)
+          .join('\n'),
       );
     } else if (wasIdle) {
       embed = embedUtils.success('Starting', `**[${first.title}](${first.url})** · \`${formatDuration(first.durationSec)}\``);

@@ -1,6 +1,6 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { Colors } from '../../config/constants.js';
-import { formatDuration, progressBar, type LoopMode, type Track } from './logic.js';
+import { formatDuration, MAX_QUEUE_SIZE, progressBar, type LoopMode, type Track } from './logic.js';
 
 /** Embeds and buttons for the now-playing message. Button ids are `music:<action>`. */
 
@@ -40,7 +40,7 @@ export function nowPlayingEmbed(state: PanelState, withProgress = false): EmbedB
       { name: 'Requested by', value: `<@${track.requestedBy}>`, inline: true },
       { name: 'Up next', value: state.queue[0] ? escape(state.queue[0].title.slice(0, 60)) : 'Nothing', inline: true },
     )
-    .setFooter({ text: `${LOOP_LABEL[state.loop]} · ${state.queue.length} in queue · ${track.source === 'spotify' ? 'Spotify → YouTube audio' : 'YouTube'}` });
+    .setFooter({ text: `${LOOP_LABEL[state.loop]} · ${state.queue.length} in queue · /play to add more · /queue to manage` });
   if (track.thumbnail) embed.setThumbnail(track.thumbnail);
   return embed;
 }
@@ -62,21 +62,68 @@ export function controls(state: PanelState): ActionRowBuilder<ButtonBuilder>[] {
   ];
 }
 
+export function pageCount(state: PanelState): number {
+  return Math.max(1, Math.ceil(state.queue.length / QUEUE_PAGE));
+}
+
+const clampPage = (state: PanelState, page: number) => Math.min(Math.max(1, page), pageCount(state));
+
 export function queueEmbed(state: PanelState, page = 1): EmbedBuilder {
-  const pages = Math.max(1, Math.ceil(state.queue.length / QUEUE_PAGE));
-  const p = Math.min(Math.max(1, page), pages);
+  const p = clampPage(state, page);
   const start = (p - 1) * QUEUE_PAGE;
   const rows = state.queue.slice(start, start + QUEUE_PAGE).map((t, i) => `\`${start + i + 1}.\` ${trackLine(t)}`);
   const total = state.queue.reduce((sum, t) => sum + (t.durationSec ?? 0), 0);
+  const now = state.current;
+  const progress =
+    now?.durationSec ? `\n${progressBar(state.elapsedSec, now.durationSec)} \`${formatDuration(state.elapsedSec)} / ${formatDuration(now.durationSec)}\`` : '';
   return new EmbedBuilder()
     .setColor(Colors.INFO)
     .setTitle('📜 Queue')
     .setDescription(
       [
-        `**Now:** ${state.current ? trackLine(state.current) : 'nothing'}`,
+        `${state.paused ? '⏸️' : '🎶'} **Now playing:** ${now ? trackLine(now) : 'nothing'}${progress}`,
         '',
-        rows.length ? rows.join('\n') : '*The queue is empty.*',
+        '**Up next**',
+        rows.length ? rows.join('\n') : '*Nothing yet. Add songs with `/play`.*',
       ].join('\n'),
     )
-    .setFooter({ text: `Page ${p}/${pages} · ${state.queue.length} songs · ${formatDuration(total)} · ${LOOP_LABEL[state.loop]}` });
+    .setFooter({
+      text: `Page ${p}/${pageCount(state)} · ${state.queue.length}/${MAX_QUEUE_SIZE} songs · ${formatDuration(total)} · ${LOOP_LABEL[state.loop]}`,
+    });
+}
+
+/** Buttons under the queue: pages, shuffle, loop, clear, and a menu to remove a song. Ids are `music:q<action>:<page>`. */
+export function queueControls(state: PanelState, page = 1): ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] {
+  const p = clampPage(state, page);
+  const button = (id: string, label: string, emoji: string, style = ButtonStyle.Secondary) =>
+    new ButtonBuilder().setCustomId(`music:${id}`).setLabel(label).setEmoji(emoji).setStyle(style);
+  const empty = state.queue.length === 0;
+  const rows: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      button(`qpage:${p - 1}`, 'Back', '◀️').setDisabled(p <= 1),
+      button(`qpage:${p + 1}`, 'Next', '▶️').setDisabled(p >= pageCount(state)),
+      button(`qshuffle:${p}`, 'Shuffle', '🔀').setDisabled(state.queue.length < 2),
+      button(`qloop:${p}`, LOOP_LABEL[state.loop], '🔁', state.loop === 'off' ? ButtonStyle.Secondary : ButtonStyle.Success),
+      button(`qclear:${p}`, 'Clear', '🗑️', ButtonStyle.Danger).setDisabled(empty),
+    ),
+  ];
+  const start = (p - 1) * QUEUE_PAGE;
+  const onPage = state.queue.slice(start, start + QUEUE_PAGE);
+  if (onPage.length) {
+    rows.push(
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`music:qremove:${p}`)
+          .setPlaceholder('Remove a song from the queue…')
+          .addOptions(
+            onPage.map((t, i) => ({
+              label: `${start + i + 1}. ${t.title}`.slice(0, 100),
+              description: t.author.slice(0, 100) || undefined,
+              value: t.key ?? String(start + i),
+            })),
+          ),
+      ),
+    );
+  }
+  return rows;
 }

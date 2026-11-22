@@ -12,14 +12,15 @@ import {
 import type { GuildTextBasedChannel, Message } from 'discord.js';
 import { embedUtils } from '../../utils/embed.js';
 import { appLogger } from '../../utils/logger.js';
-import { advance, shuffled, type LoopMode, type Track } from './logic.js';
+import { advance, MAX_QUEUE_SIZE, shuffled, type LoopMode, type Track } from './logic.js';
 import { controls, nowPlayingEmbed, type PanelState } from './panel.js';
 import { ensurePlayable, openStream, type AudioStream } from './sources.js';
 
 const IDLE_LEAVE_MS = 3 * 60_000;
 const ALONE_LEAVE_MS = 2 * 60_000;
-export const MAX_QUEUE = 300;
 const MAX_FAILURES_IN_A_ROW = 3;
+
+let nextKey = 0;
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -85,7 +86,8 @@ export class GuildMusic {
 
   /** Adds tracks and starts playing if idle. Returns how many fit in the queue. */
   add(tracks: Track[], next = false): number {
-    const fit = tracks.slice(0, Math.max(0, MAX_QUEUE - this.queue.length));
+    const fit = tracks.slice(0, Math.max(0, MAX_QUEUE_SIZE - this.queue.length));
+    for (const track of fit) track.key = String(++nextKey);
     if (next) this.queue.unshift(...fit);
     else this.queue.push(...fit);
     if (!this.current && !this.starting && fit.length) void this.moveOn(true);
@@ -126,10 +128,21 @@ export class GuildMusic {
     void this.refreshPanel();
   }
 
-  remove(position: number): Track | null {
-    const [removed] = this.queue.splice(position - 1, 1);
-    if (removed) void this.refreshPanel();
-    return removed ?? null;
+  /** Removes a waiting song by its key (from the queue menu). */
+  remove(key: string): Track | null {
+    const index = this.queue.findIndex((t) => t.key === key);
+    if (index < 0) return null;
+    const [removed] = this.queue.splice(index, 1);
+    void this.refreshPanel();
+    return removed;
+  }
+
+  /** Empties the waiting list; the current song keeps playing. */
+  clear(): number {
+    const count = this.queue.length;
+    this.queue = [];
+    void this.refreshPanel();
+    return count;
   }
 
   /** Called on every voice change in the bot's channel. */

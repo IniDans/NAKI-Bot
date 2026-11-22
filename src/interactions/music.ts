@@ -1,15 +1,19 @@
 import { MessageFlags } from 'discord.js';
 import { musicModule } from '../modules/music/index.js';
 import { nextLoop } from '../modules/music/logic.js';
-import { queueEmbed } from '../modules/music/panel.js';
+import { queueControls, queueEmbed } from '../modules/music/panel.js';
 import { embedUtils } from '../utils/embed.js';
 import type { ComponentHandler } from '../types/index.js';
 
-/** Now-playing buttons: `music:pause|skip|stop|loop|shuffle|queue`. Only people in the bot's voice channel can use them. */
+/**
+ * Music buttons. Only people in the bot's voice channel can use them.
+ * - Now-playing message: `music:pause|skip|stop|loop|shuffle|queue`
+ * - Queue view (from /queue or the Queue button): `music:qpage|qshuffle|qloop|qclear|qremove:<page>`
+ */
 const handler: ComponentHandler = {
   prefix: 'music',
-  async execute(interaction, [action]) {
-    if (!interaction.isButton() || !interaction.inCachedGuild()) return;
+  async execute(interaction, [action, pageArg]) {
+    if (!interaction.inCachedGuild() || !(interaction.isButton() || interaction.isStringSelectMenu())) return;
     const access = musicModule.control(interaction.member);
     if (!access.ok) {
       await interaction.reply({ embeds: [embedUtils.error('Music', access.reason)], flags: MessageFlags.Ephemeral });
@@ -19,10 +23,42 @@ const handler: ComponentHandler = {
     const who = interaction.member.displayName;
 
     if (action === 'queue') {
-      await interaction.reply({ embeds: [queueEmbed(session.state())], flags: MessageFlags.Ephemeral });
+      const state = session.state();
+      await interaction.reply({ embeds: [queueEmbed(state)], components: queueControls(state), flags: MessageFlags.Ephemeral });
       return;
     }
-    // The session edits or replaces the now-playing message itself.
+
+    // Queue view: change something, then redraw the same private message.
+    if (action.startsWith('q')) {
+      const page = Number(pageArg) || 1;
+      let note: string | null = null;
+      switch (action) {
+        case 'qshuffle':
+          session.shuffle();
+          break;
+        case 'qloop':
+          session.setLoop(nextLoop(session.loop));
+          break;
+        case 'qclear': {
+          const count = session.clear();
+          if (count) await session.notice(`🗑️ **${who}** cleared the queue (${count} songs).`);
+          break;
+        }
+        case 'qremove': {
+          if (!interaction.isStringSelectMenu()) return;
+          const removed = session.remove(interaction.values[0]);
+          note = removed ? `Removed **${removed.title}**.` : 'That song is no longer in the queue.';
+          break;
+        }
+      }
+      const state = session.state();
+      const embed = queueEmbed(state, page);
+      if (note) embed.setAuthor({ name: note.replace(/\*\*/g, '') });
+      await interaction.update({ embeds: [embed], components: queueControls(state, page) });
+      return;
+    }
+
+    // Now-playing message: the session edits or replaces it itself.
     await interaction.deferUpdate();
     switch (action) {
       case 'pause':

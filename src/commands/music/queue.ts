@@ -1,22 +1,19 @@
 import { MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { musicModule } from '../../modules/music/index.js';
-import { queueEmbed } from '../../modules/music/panel.js';
+import { queueControls, queueEmbed } from '../../modules/music/panel.js';
 import { replyError } from '../../modules/music/commands.js';
 import type { Command } from '../../types/index.js';
 
 const command: Command = {
   data: new SlashCommandBuilder()
     .setName('queue')
-    .setDescription('Show the songs waiting to play')
-    .addIntegerOption((o) => o.setName('page').setDescription('Page number').setMinValue(1)),
+    .setDescription('See the song list, and shuffle, loop or remove songs'),
   guildOnly: true,
   async execute(interaction) {
     const session = musicModule.get(interaction.guildId!);
-    if (!session?.current) return replyError(interaction, 'Nothing is playing right now.');
-    await interaction.reply({
-      embeds: [queueEmbed(session.state(), interaction.options.getInteger('page') ?? 1)],
-      flags: MessageFlags.Ephemeral,
-    });
+    if (!session?.current) return replyError(interaction, 'Nothing is playing. Start something with `/play`.');
+    const state = session.state();
+    await interaction.reply({ embeds: [queueEmbed(state)], components: queueControls(state), flags: MessageFlags.Ephemeral });
   },
 };
 export default command;

@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import type { Readable } from 'node:stream';
 import { appLogger } from '../../utils/logger.js';
 import {
+  MAX_QUEUE_SIZE,
   MAX_TRACK_SEC,
   parseQuery,
   pickBest,
@@ -21,7 +22,9 @@ const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 // YouTube needs a JavaScript runtime to unlock streams; reuse the Node running the bot.
 const BASE_ARGS = ['--ignore-config', '--no-warnings', '--js-runtimes', `node:${process.execPath}`];
 const SEARCH_SIZE = 8;
-export const MAX_PLAYLIST = 100;
+export const MAX_PLAYLIST = MAX_QUEUE_SIZE;
+/** Spotify's public embed lists at most this many songs of a playlist or album. */
+export const SPOTIFY_EMBED_LIMIT = 100;
 
 export class MusicError extends Error {}
 
@@ -168,7 +171,11 @@ async function fromSpotify(type: SpotifyKind, id: string, requestedBy: string): 
     .slice(0, MAX_PLAYLIST)
     .map((t) => spotifyTrack(t.title!, t.subtitle ?? '', t.duration, spotifyPage(t.uri, page), requestedBy, cover));
   if (tracks.length === 0) throw new MusicError('That Spotify link has no playable tracks.');
-  return { tracks, collection: entity.name || entity.title || 'Spotify playlist' };
+  return {
+    tracks,
+    collection: entity.name || entity.title || 'Spotify playlist',
+    capped: (entity.trackList?.length ?? 0) >= SPOTIFY_EMBED_LIMIT,
+  };
 }
 
 /** spotify.link short links redirect to open.spotify.com. */
@@ -183,6 +190,8 @@ export interface Resolved {
   tracks: Track[];
   /** Playlist or album name when the input held several tracks. */
   collection?: string;
+  /** Spotify only showed its first 100 songs. */
+  capped?: boolean;
 }
 
 function checkLength(c: Candidate) {

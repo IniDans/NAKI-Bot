@@ -24,6 +24,8 @@ export interface Track {
   youtubeId?: string;
   lookup?: { query: string; durationSec?: number };
   requestedBy: string;
+  /** Set when queued, so a stale queue menu removes the right song. */
+  key?: string;
 }
 
 /** A YouTube search result. */
@@ -37,6 +39,8 @@ export interface Candidate {
 }
 
 export const MAX_TRACK_SEC = 3 * 60 * 60;
+/** Songs waiting in one server's queue. A playlist fills it up to this. */
+export const MAX_QUEUE_SIZE = 200;
 const VIDEO_ID = /^[\w-]{11}$/;
 const SPOTIFY_ID = /^[A-Za-z0-9]{22}$/;
 
